@@ -3,4 +3,4 @@ implementation  of tokenized.cash  protocoal in c++
 
 status:
 
-   currently only implent SHC token .
+   currently only implement SHC token .
