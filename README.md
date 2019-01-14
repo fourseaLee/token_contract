@@ -1,2 +1,2 @@
 # token_contract
-implention of tokenized.cash
+implementation  of tokenized.cash  protocoal in c++
