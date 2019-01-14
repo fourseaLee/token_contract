@@ -1,0 +1,13 @@
+{
+"asset_id":"SHC",
+"contract_address":"mt1RWPZwGrdAU2KgaK3WqPd3sNjBjiiefQ",
+"contract_fee":0.00005000,
+"issuer_address":"mmG1naLW4rKRRDuQwaCmpgL58cZHWjxWy2",
+"miner_fee":0.00001000,
+"priv_key_base58":"cSC5hn64977UMZX28jVyqYPhMh81Z7vQqvnGyhfVvHHY2oSkq3Um",
+"qty":1000000000,
+"utxo":
+[
+["0aabb6e14a2453a3e9c0f6c20002b345c96b38639827712787537624185651c2",0,"0.000050"],["fb463d9e6c1d6ff8ca587eae37330959414c5cc44d77aa3086ba9b44e80277f2",0,"0.000120"]
+]
+}

@@ -1,0 +1,17 @@
+{
+    "timeout": "30",
+    "bindaddr": "0.0.0.0",
+    "listenport": "8545",
+    "daemon": "no",
+    "block_node_url": "http://192.168.0.68:18332/",
+    "rpc_auth": "dev:a",
+    "mysql": {
+        "mysqlport": "3306",
+        "mysqlserver": "192.168.0.68",
+        "mysqluser": "root",
+        "mysqlpass": "a",
+        "mysqldb": "smart_contract"
+    }
+
+}
+

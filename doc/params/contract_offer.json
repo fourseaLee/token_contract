@@ -1,0 +1,11 @@
+{
+"contract_address":"mt1RWPZwGrdAU2KgaK3WqPd3sNjBjiiefQ",
+"contract_content":"content",
+"contract_fee":0.00004000,
+"contract_name":"test",
+"issuer_address":"mmG1naLW4rKRRDuQwaCmpgL58cZHWjxWy2",
+"miner_fee":0.00001000,
+"priv_key_base58":"cSC5hn64977UMZX28jVyqYPhMh81Z7vQqvnGyhfVvHHY2oSkq3Um",
+"utxo":
+[["63ebaa9e225d906bc093faf93f78cca8288ae9a8bcd257fa65a9a73323788c12",0,"0.000120"]]
+}

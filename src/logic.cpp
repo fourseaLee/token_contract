@@ -1,0 +1,898 @@
+
+#include "logic.h"
+#include "interactive/tokeninteractive.h"
+#include "data/db_mysql.h"
+#include "contract/contract.h"
+
+#include <glog/logging.h>
+#include <map>
+#include <stdlib.h>
+#include "init.h"
+#define PRE_LENGHT  8 // precise length
+#define FIXED_FEE  0.00001 //fixed  charge fee
+#define SETTLE_RECIEVE  0.00005 //fixed  recieve get value
+
+#define  RPC_ERR error_info_ = "Rpc node can't connect!"
+#define  CURL_ERR  error_info_ = curl_params_->curl_response
+
+bool  Logic::StructRpcHeader(const std::string rpc_method,json& json_data)
+{
+    json_data["jsonrpc"] = "1.0";
+    json_data["id"] = "curltest";
+    json_data["method"] = rpc_method;
+    return true;
+}
+
+bool Logic::FormatDouble(double& value)
+{
+    if (value < 0.0)
+        return false;
+    int64_t l_value  = value;
+    double dec_value = value  - l_value;
+    char char_value[20];
+    gcvt(dec_value,PRE_LENGHT ,char_value);
+
+    value = std::atof(char_value) + (double)l_value;
+    return true;
+
+}
+
+static Contract* s_contract  = new Contract();
+
+
+std::vector<std::string> Logic::createContract(json json_contract_data)
+{
+    contract_format_->issuer_address = json_contract_data["issuer_address"].get<std::string>();
+    contract_format_->contract_address = json_contract_data["contract_address"].get<std::string>();
+    contract_format_->contract_content = json_contract_data["contract_content"].get<std::string>();
+    contract_format_->contract_name = json_contract_data["contract_name"].get<std::string>();
+    contract_format_->asset_type = json_contract_data["asset_type"].get<std::string>();
+    contract_format_->asset_id = json_contract_data["asset_id"].get<std::string>();
+    contract_format_->asset_qty = json_contract_data["asset_qty"].get<uint64_t>();
+
+    Contract* contract_object = (Contract*)contract_->FormatContract(contract_format_);
+    std::vector<Tx* > vect_txs = contract_object->ActionsToBlockChainTxs();
+    if(vect_txs.size() != 4)
+    {
+        throw std::runtime_error("when create contract,transction acmount is not 4");
+    }
+
+    std::vector<std::string> vect_txid;
+    std::string txid;
+    bool is_success = CreateTransaction(vect_txs[0],txid);
+    if (!is_success)
+    {
+        throw std::runtime_error("option C1 error");
+    }
+    vect_txid.push_back(txid);
+
+    WalletInfo* wallet_info = new WalletInfo();
+    wallet_info->contract = contract_format_->contract_address;
+    wallet_info->asset_id = contract_format_->asset_id;
+    wallet_info->address = contract_format_->issuer_address;
+    wallet_info->txid = txid;
+    wallet_info->type = ActionObject::C1;
+    wallet_info->qty = contract_format_->asset_qty;
+    FlushToDB(wallet_info);
+
+    is_success = CreateTransaction(vect_txs[1],txid);
+    if (!is_success)
+    {
+        throw std::runtime_error("option C2 error");
+    }
+    vect_txid.push_back(txid);
+
+    wallet_info->txid = txid;
+    wallet_info->type = ActionObject::C2;
+    FlushToDB(wallet_info);
+
+    is_success = CreateTransaction(vect_txs[2],txid);
+    if (!is_success)
+    {
+        throw std::runtime_error("option A1 error");
+    }
+    vect_txid.push_back(txid);
+
+    wallet_info->txid = txid;
+    wallet_info->type = ActionObject::A1;
+    FlushToDB(wallet_info);
+
+    is_success = CreateTransaction(vect_txs[3],txid);
+    if (!is_success)
+    {
+        throw std::runtime_error("option A1 error");
+    }
+    vect_txid.push_back(txid);
+
+    wallet_info->txid = txid;
+    wallet_info->type = ActionObject::A2;
+    wallet_info->qty = contract_format_->asset_qty;
+    FlushToDB(wallet_info);
+
+    delete wallet_info;
+    return vect_txid;
+}
+
+std::vector<std::string> Logic::transferContract(json json_contract_data)
+{
+    transfer_->asset_id = json_contract_data["asset_id"].get<std::string>();
+    transfer_->send_address = json_contract_data["send_address"].get<std::string>();
+    transfer_->recieve_address = json_contract_data["recieve_address"].get<std::string>();
+    transfer_->contract_address = json_contract_data["contract_address"].get<std::string>();
+    transfer_->currency_count = json_contract_data["currency_count"].get<double>();
+    transfer_->share_count = json_contract_data["share_count"].get<uint64_t>();
+    json json_send;
+    json json_recieve;
+    json_send["address"] = transfer_->send_address;
+    json_send["asset_id"] =  transfer_->asset_id ;
+    json_send["contract"] = transfer_->contract_address;
+
+    json_recieve["address"] = transfer_->recieve_address;
+    json_recieve["asset_id"] =  transfer_->asset_id ;
+    json_recieve["contract"] = transfer_->contract_address;
+
+    uint64_t  send_cout = queryContract(json_send);// 100000000;
+    uint64_t  recieve_cout =  queryContract(json_recieve) ;//800000;
+
+    if (send_cout < transfer_->share_count)
+    {
+        std::string error_info = "token is unenough,need " + std::to_string(transfer_->share_count) + "but real is" + std::to_string(send_cout);
+        throw std::runtime_error(error_info);
+    }
+    transfer_->send_remain = send_cout - transfer_->share_count;
+    transfer_->recieve_remain = recieve_cout + transfer_->share_count;
+
+    Contract* contract_object = (Contract*)contract_->TransferShares(transfer_);
+    std::vector<Tx* > vect_txs = contract_object->ActionsToBlockChainTxs();
+    if(vect_txs.size() != 2)
+    {
+        throw std::runtime_error("when transfer token transction acmount is not 2");
+    }
+
+    std::vector<std::string> vect_txid;
+    std::string txid;
+    bool is_success = CreateTransaction(vect_txs[0],txid);
+    if (!is_success)
+    {
+        throw std::runtime_error("option T2 error");
+    }
+    vect_txid.push_back(txid);
+
+    WalletInfo* wallet_info = new WalletInfo();
+    wallet_info->contract = transfer_->contract_address;
+    wallet_info->asset_id = transfer_->asset_id;
+    wallet_info->address = transfer_->send_address;
+    wallet_info->txid = txid;
+    wallet_info->type = ActionObject::T2;
+    wallet_info->qty = transfer_->share_count;
+    FlushToDB(wallet_info);
+
+    is_success = CreateTransaction(vect_txs[1],txid);
+    if (!is_success)
+    {
+        throw std::runtime_error("option T4 error");
+    }
+    vect_txid.push_back(txid);
+
+    wallet_info->contract = transfer_->contract_address;
+    wallet_info->asset_id = transfer_->asset_id;
+    wallet_info->address = transfer_->send_address;
+    wallet_info->txid = txid;
+    wallet_info->type = ActionObject::T4;
+    wallet_info->qty = transfer_->send_remain;
+    FlushToDB(wallet_info);
+
+    wallet_info->contract = transfer_->contract_address;
+    wallet_info->asset_id = transfer_->asset_id;
+    wallet_info->address = transfer_->recieve_address;
+    wallet_info->txid = txid;
+    wallet_info->type = ActionObject::T4;
+    wallet_info->qty = transfer_->recieve_remain;
+    FlushToDB(wallet_info);
+    delete wallet_info;
+
+    return vect_txid;
+
+}
+
+uint64_t Logic::queryContract(const json &json_contract_data)
+{
+    uint64_t token_amout = 0;
+    uint64_t token_available = 0;
+    uint64_t token_freeze = 0;
+    bool ret = queryTokens(json_contract_data,token_available,token_freeze);
+    if(!ret)
+        return 0;
+    token_amout = token_available + token_freeze;
+    return token_amout;
+}
+
+bool Logic::ContractOffer(const json &json_contract,std::string& txid)
+{
+    std::string issuer_address = json_contract["issuer_address"].get<std::string>();
+    std::string contract_address = json_contract["contract_address"].get<std::string>();
+    std::string contract_name = json_contract["contract_name"].get<std::string>();
+    std::string contract_content = json_contract["contract_content"].get<std::string>();
+    double fee = json_contract["fee"].get<double>();
+
+
+    s_contract->SetContractType(Contract::SHC_CREATE);
+    s_contract->SetIssuerAddress(issuer_address);
+    s_contract->SetContractAddress(contract_address);
+
+    NCAct  action = new Action::ContractOperation();
+    NCActC action_c =  (NCActC)action;
+    action_c->operation_code = Action::C1;
+
+    action_c->contract_name = contract_name;
+    action_c->contract_file_hash = contract_content;
+
+    std::string op_ret_data;
+    bool ret = s_contract->FormatOpReturnData(action,op_ret_data);
+    if(!ret)
+    {
+        error_info_ = "serialize action C1 failed!";
+        delete action;
+        return ret;
+    }
+
+    Tx* tx = new Tx();
+    tx->map_input_amout_[issuer_address] = fee;
+    tx->map_output_amount_[contract_address] = fee;
+    tx->PushInputAddress(issuer_address);
+    tx->PushOutputAddress(contract_address);
+    tx->SetOpReturnData(op_ret_data);
+    ret = CreateTransaction(tx,txid);
+
+    delete tx;
+    delete action;
+    return ret;
+}
+
+bool Logic::AssetDefinition(const json &json_contract, std::string &txid)
+{
+    std::string issuer_address = json_contract["issuer_address"].get<std::string>();
+    std::string contract_address = json_contract["contract_address"].get<std::string>();
+    double fee = json_contract["fee"].get<double>();
+    std::string asset_id = json_contract["asset_id"].get<std::string>();
+    std::string asset_id_hash ;
+    ContractObject::GetContractHash(asset_id,asset_id_hash);
+    uint64_t qty = json_contract["qty"].get<uint64_t>();
+
+    NCAct action = new Action::AssetOperation();
+    NCActA action_a = (NCActA)action;
+    action_a->operation_code = Action::A1;
+    action_a->asset_type =  "SHC";//json_contract->asset_type;
+    action_a->asset_id = asset_id_hash;
+    action_a->qty = qty;
+    action_a->contract_fee_currency = "BCH";
+    action_a->contract_fee_var = 0.01;
+    action_a->contract_fee_fixed = 15;
+
+    std::string op_ret_data;
+    bool ret = s_contract->FormatOpReturnData(action,op_ret_data);
+    if(!ret)
+    {
+        error_info_ = "serialize action A1 failed!";
+        delete action;
+        return ret;
+    }
+
+    Tx* tx = new Tx();
+    tx->map_input_amout_[issuer_address] = fee;
+    tx->map_output_amount_[contract_address] = fee;
+    tx->PushInputAddress(issuer_address);
+    tx->PushOutputAddress(contract_address);
+    tx->SetOpReturnData(op_ret_data);
+    ret = CreateTransaction(tx,txid);
+    if (ret)
+    {
+        WalletInfo* wallet_info = new WalletInfo();
+        wallet_info->txid = txid;
+        wallet_info->type = ActionObject::A1;
+        wallet_info->address = issuer_address;
+        wallet_info->asset_id = asset_id_hash;
+        wallet_info->contract = contract_address;
+        wallet_info->qty = qty;
+        FlushToDB(wallet_info);
+        delete wallet_info;
+    }
+
+    delete tx;
+    delete action;
+    return ret;
+}
+
+bool Logic::PushUtxo(const json &json_contract,json &utxo)
+{
+    std::string contract_address = json_contract["contract_address"].get<std::string>();
+    std::string source =  json_contract["source"].get<std::string>();
+    std::string target = json_contract["target"].get<std::string>();
+    uint64_t  qty = json_contract["qty"].get<uint64_t>();
+    double currency = json_contract["currency"].get<double>();
+    std::string asset_id = json_contract["asset_id"].get<std::string>();
+    std::string asset_id_hash;
+    ContractObject::GetContractHash(asset_id,asset_id_hash);
+    double utxo_currency = 0.0;
+    bool ret = GetUTXO(source,currency,utxo,utxo_currency);
+
+    if (!ret)
+    {
+        return ret;
+    }
+
+    json json_content;
+    json_content["contract_address"] = contract_address;
+    json_content["utxo_currency"] =  utxo_currency;
+    json_content["utxo"] = utxo;
+    json_content["currency"] = currency;
+    json_content["send_address"] = target;
+    json_content["recieve_address"] = source;
+    json_content["asset_type"] = "SHC";
+    json_content["asset_id"] = asset_id;
+    json_content["shares"] = qty;
+    json json_kafka;
+    json_kafka["code"] = UTXO;
+    json_kafka["target"] = target;
+    json_kafka["content"] = json_content;
+
+    WalletInfo* wallet_info = new WalletInfo();
+    wallet_info->contract = contract_address;
+    wallet_info->asset_id = asset_id_hash;
+    wallet_info->address = source;
+    wallet_info->txid = "utxo";
+    wallet_info->type = ActionObject::T2;
+    wallet_info->qty = qty;
+    FlushToDB(wallet_info);
+    delete wallet_info;
+
+    token_init::g_kafka_producer->PushData(json_kafka.dump());
+
+    return true;
+}
+
+bool Logic::IsMyAddress(std::string &address)
+{
+    if(address.empty())
+        return false;
+
+    json json_post;
+    StructRpcHeader("validateaddress",json_post);
+    json json_params  = json::array();
+    json_params.push_back(address);
+    json_post["params"] = json_params;
+    curl_params_->curl_post_data  = json_post.dump();
+    if (!token_interactive::CurlPost(curl_params_) )
+        return false;
+    json json_response = json::parse(curl_params_->curl_response);
+    json json_result = json_response["result"];
+    if (json_result.is_null() ||  json_result["ismine"].is_null())
+    {
+        LOG(INFO) << curl_params_->curl_post_data ;
+        return false;
+    };
+    bool ret = json_result["ismine"].get<bool>();
+
+    return ret;
+}
+
+uint64_t Logic::GetAvailableTokens(const json &json_contract_data)
+{
+    uint64_t token_available = 0;
+    uint64_t token_freeze = 0;
+    bool ret = queryTokens(json_contract_data,token_available,token_freeze);
+    if(!ret)
+        return 0;
+    return token_available;
+}
+
+bool Logic::GetUTXO(const std::string &address, const double &currency, json &utxo, double&utxo_currency)
+{
+    json json_post;
+    json json_params  = json::array();
+    json json_address_array = json::array();
+    json json_response;
+    json json_result;
+
+    StructRpcHeader("listunspent",json_post);
+    json_address_array.clear();
+    json_address_array.push_back(address);
+    json_params.clear();
+
+    json_params.push_back(0);
+    json_params.push_back(9999999);
+    json_params.push_back(json_address_array);
+    json_post["params"] = json_params;
+    curl_params_->curl_post_data  = json_post.dump();
+
+    if (!token_interactive::CurlPost(curl_params_))
+    {
+        RPC_ERR;
+        return false;
+    }
+
+    json_response = json::parse(curl_params_->curl_response);
+    if (json_response["result"].is_null())
+    {
+        LOG(INFO) << curl_params_->curl_post_data;
+        LOG(ERROR) << curl_params_->curl_response ;
+        CURL_ERR;
+        return false;
+    }
+
+    json_result = json_response["result"];
+    if (json_result.size() <= 0)
+    {
+        error_info_ = address + " has  no UTXO!";
+        return false;
+    }
+
+    double add_amount = 0.0;
+    for (unsigned int i = 0; i < json_result.size(); i++ )
+    {
+        json json_value  = json_result.at(i);
+        std::string txid_spent = json_value["txid"].get<std::string>();
+        int vout = json_value["vout"].get<int>();
+        double amount = json_value["amount"].get<double>();
+        add_amount += amount;
+        json json_txid;
+        json_txid["txid"] = txid_spent;
+        json_txid["vout"] = vout;
+        utxo.push_back(json_txid);
+        if (add_amount > currency )
+        {
+            utxo_currency = add_amount;
+            return true;
+        }
+    }
+
+    error_info_ = address + "has not enough ,need " + std::to_string(currency) +" but has only "  + std::to_string(add_amount);
+    return false;
+}
+
+bool Logic::EncodeAddress(const std::string &address, std::string &bch_address)
+{
+    json json_post;
+    json json_params = json::array();
+    StructRpcHeader("validateaddress",json_post);
+    json_params.clear();
+    json_params.push_back(address);
+    json_post["params"] = json_params;
+    curl_params_->curl_post_data  = json_post.dump();
+    if (!token_interactive::CurlPost(curl_params_))
+        return false;
+    json json_response = json::parse(curl_params_->curl_response);
+    if (json_response["result"].is_null())
+    {
+        LOG(INFO) << curl_params_->curl_response ;
+        return false;
+    }
+
+    json result = json_response["result"];
+    bch_address = result["address"].get<std::string>();
+    return true;
+}
+
+bool Logic::CreateTransaction(Tx *tx, std::string &txid)
+{
+    std::vector<std::string> vect_address_input;
+    std::vector<std::string> vect_address_output;
+    tx->GetInputAddress(vect_address_input);
+    tx->GetOutputAddress(vect_address_output);
+
+    json json_post;
+    json json_params  = json::array();
+    json json_address_array = json::array();
+    json json_response;
+    json json_result;
+    json json_txid_array= json::array();
+    std::map<std::string,double> map_charge_fee;
+
+    for(unsigned int i = 0; i < vect_address_input.size(); i++)
+    {
+        StructRpcHeader("listunspent",json_post);
+        json_address_array.clear();
+        json_address_array.push_back(vect_address_input.at(i));
+        json_params.clear();
+        json_params.push_back(0);
+        json_params.push_back(9999999);
+        json_params.push_back(json_address_array);
+        json_post["params"] = json_params;
+        curl_params_->curl_post_data  = json_post.dump();
+
+        if (!token_interactive::CurlPost(curl_params_))
+        {
+            RPC_ERR;
+            return false;
+        }
+
+        json_response = json::parse(curl_params_->curl_response);
+        if (json_response["result"].is_null())
+        {
+            LOG(INFO)  << curl_params_->curl_post_data;
+            LOG(ERROR) << curl_params_->curl_response;
+            error_info_ = curl_params_->curl_response;
+            return false;
+        }
+
+        json_result = json_response["result"];
+        if (json_result.size() <= 0)
+        {
+            LOG(INFO)  << "has not UTXO : " <<curl_params_->curl_post_data;
+            error_info_ = vect_address_input.at(i) + " has not UTXO !" ;
+            return false;
+        }
+        //first address pays the charge fee .
+        double pay_amout = tx->map_input_amout_[vect_address_input.at(i)];
+        if ( i == 0)
+            pay_amout += FIXED_FEE;
+        double add_amout = 0.0;
+        for (unsigned int j = 0; j < json_result.size(); j++ )
+        {
+            json json_value  = json_result.at(j);
+            std::string txid_spent = json_value["txid"].get<std::string>();
+            int vout = json_value["vout"].get<int>();
+            double amount = json_value["amount"].get<double>();
+            add_amout += amount;
+            json json_txid;
+            json_txid["txid"] = txid_spent;
+            json_txid["vout"] = vout;
+            json_txid_array.push_back(json_txid);
+            if (add_amout > pay_amout )
+            {
+                //settle  the charge  fee
+                double charge_fee = add_amout - pay_amout;
+                FormatDouble(charge_fee);
+                map_charge_fee[vect_address_input.at(i)] = charge_fee;
+                break;
+            }
+        }
+
+        if (pay_amout  > add_amout)
+        {
+            error_info_  = vect_address_input.at(i) + " has not enough money";
+            LOG(ERROR) << error_info_ ;
+            return false;
+        }
+    }
+
+    std::string hex_data ;
+    tx->GetOpReturnData(hex_data);
+
+    json json_tx_output;
+    json_tx_output["data"] = hex_data;
+    std::map<std::string,double>::const_iterator cont_it = tx->map_output_amount_.begin();
+    double out_put_fee = 0.0;
+    //if charge address is same as output address, merge amount
+    for (;cont_it != tx->map_output_amount_.end(); cont_it++ )
+    {
+        out_put_fee += cont_it->second;
+        if (map_charge_fee.find(cont_it->first) != map_charge_fee.end())
+        {
+            json_tx_output[cont_it->first] =  cont_it->second + map_charge_fee[cont_it->first];
+            map_charge_fee.erase(cont_it->first);
+        }
+        else
+        {
+            json_tx_output[cont_it->first] = cont_it->second;
+        }
+    }
+
+    //put charge fee to output
+    cont_it = map_charge_fee.begin();
+    for (;cont_it != map_charge_fee.end(); cont_it++)
+    {
+        json_tx_output[cont_it->first] = cont_it->second;
+    }
+
+    json_params.clear();
+    json_params.push_back(json_txid_array);
+    json_params.push_back(json_tx_output);
+
+    StructRpcHeader("createrawtransaction",json_post);
+    json_post["params"] = json_params;
+
+    curl_params_->curl_post_data  = json_post.dump();
+    if (!token_interactive::CurlPost(curl_params_))
+    {
+        RPC_ERR;
+        return false;
+    }
+
+    json_response = json::parse(curl_params_->curl_response);
+
+    if (json_response["result"].is_null())
+    {
+        LOG(INFO) << curl_params_->curl_post_data ;
+        LOG(ERROR) << curl_params_->curl_response ;
+        CURL_ERR;
+        return false;
+    }
+
+    std::string tx_hex = json_response["result"].get<std::string>();
+    StructRpcHeader("signrawtransaction",json_post);
+    json_params.clear();
+    json_params.push_back(tx_hex);
+    json_post["params"] = json_params;
+    curl_params_->curl_post_data  = json_post.dump();
+    if (!token_interactive::CurlPost(curl_params_))
+    {
+        RPC_ERR;
+        return false;
+    }
+
+    json_response = json::parse(curl_params_->curl_response);
+    if(json_response.find("result") == json_response.end())
+    {
+        LOG(INFO) << curl_params_->curl_post_data ;
+        LOG(ERROR) << curl_params_->curl_response ;
+        CURL_ERR;
+        return false;
+    }
+    if (json_response["result"].is_null())
+    {
+        LOG(INFO) << curl_params_->curl_post_data ;
+        LOG(ERROR) << curl_params_->curl_response ;
+        CURL_ERR;
+        return false;
+    }
+    json_result = json_response["result"];
+    std::string sign_tx_hex = json_result["hex"].get<std::string>();
+
+    StructRpcHeader("sendrawtransaction",json_post);
+    json_params.clear();
+    json_params.push_back(sign_tx_hex);
+    json_post["params"] = json_params;
+    curl_params_->curl_post_data  = json_post.dump();
+    if (!token_interactive::CurlPost(curl_params_))
+    {
+        RPC_ERR;
+        return false;
+    }
+    json_response = json::parse(curl_params_->curl_response);
+    if (json_response["result"].is_null())
+    {
+        LOG(INFO) << curl_params_->curl_post_data ;
+        LOG(ERROR) << curl_params_->curl_response ;
+        CURL_ERR;
+        return false;
+    }
+    txid = json_response["result"].get<std::string>();
+
+    return true;
+}
+
+void Logic::FlushToDB(WalletInfo* wallet_info)
+{
+    std::string sql_insert = "INSERT INTO `wallet_info` (`contract`,`asset_id`,`qty`,`address`,`txid`,`type`) VALUES ('";
+    // process regtest afddress
+    if(wallet_info->address.size() == 49)
+    {
+        wallet_info->address = wallet_info->address.substr(7);
+    }
+
+    if(wallet_info->contract.size() == 49)
+    {
+        wallet_info->contract = wallet_info->contract.substr(7);
+    }
+
+    std::string sql_value = wallet_info->contract + "','" + wallet_info->asset_id+ "','" 
+        + std::to_string(wallet_info->qty) + "','"+ wallet_info->address + "','"
+        + wallet_info->txid + "','" + std::to_string(wallet_info->type) + "');";
+    sql_insert += sql_value;
+    LOG(INFO) << "flush wallet: "<<  sql_insert << std::endl;
+    g_db_mysql->QuerySql(sql_insert);
+}
+
+bool Logic::GetUtxo(const json &json_request, json &json_utxo)
+{
+
+    std::string address = json_request["address"].get<std::string>();
+    std::string value = json_request["value"].get<std::string>();
+    double amount = std::atof(value.c_str());
+    std::string bch_address;
+    EncodeAddress(address,bch_address);
+
+    std::string select_sql = "select txid,vout,value from utxo where address = '" + bch_address +"' and coinbase = 0;";
+    DBMysql::JsonDataFormat json_format;
+    json_format.column_size = 3;
+    json_format.map_column_type[0] = DBMysql::STRING;
+    json_format.map_column_type[1] = DBMysql::INT;
+    json_format.map_column_type[2] = DBMysql::STRING;
+    json json_data = json::array();
+    g_db_mysql->GetDataAsJson(select_sql, &json_format, json_data);
+    double total_amount = 0;
+    bool  enough = false;
+    for (unsigned int i = 0; i < json_data.size(); i++)
+    {
+        json json_value = json_data.at(i);
+        std::string value_tmp = json_value.at(2).get<std::string>();
+        double amount_tmp = std::atof(value_tmp.c_str());
+        total_amount += amount_tmp;
+        if (total_amount >= amount)
+        {
+           json_utxo.push_back(json_value);
+           enough = true;
+           break;
+        }
+        json_utxo.push_back(json_value);
+    }
+
+    return enough;
+}
+
+void Logic::GetErrorInfo(std::string &error_info)
+{
+    error_info = error_info_;
+}
+
+bool Logic::queryTokens(const json& json_contract_data, uint64_t& token_amount, uint64_t& freeze_amount)
+{
+    std::string address = json_contract_data["address"].get<std::string>();
+    std::string asset_id = json_contract_data["asset_id"].get<std::string>();
+    std::string contract = json_contract_data["contract"].get<std::string>();
+    if(address.size() == 49)
+    {
+        address = address.substr(7);
+    }
+
+    if(contract.size() == 49)
+    {
+        contract = contract.substr(7);
+    }
+
+    DBMysql::JsonDataFormat json_format;
+    json_format.column_size = 2;
+    json_format.map_column_type[0] = DBMysql::INT;
+    json_format.map_column_type[1] = DBMysql::INT;
+    std::string sql_select = "SELECT `qty`, `id` FROM wallet_info WHERE address = '" + address 
+        + "' AND asset_id = '" + asset_id + "' AND contract = '" + contract 
+        + "' AND type = " + std::to_string(ActionObject::T4)
+        + " ORDER BY id DESC LIMIT 1;";
+
+    json json_data;
+    bool ret = g_db_mysql->GetDataAsJson(sql_select,&json_format,json_data);
+    if(!ret)
+    {
+        LOG(ERROR) << "select T4 faild .";
+        return false;
+    }
+
+    if(json_data.size())
+    {
+        uint64_t T4_amount = json_data[0][0].get<uint64_t>();
+        uint64_t T4_id = json_data[0][1].get<uint64_t>();
+
+        sql_select.clear();
+        sql_select = "SELECT `qty` FROM wallet_info WHERE address = '" + address 
+            + "' AND asset_id = '" + asset_id + "' AND contract = '" + contract 
+            + "' AND type = " + std::to_string(ActionObject::T2)
+            + " AND id > " + std::to_string(T4_id)
+            + " ORDER BY id DESC LIMIT 1;";
+
+        json_format.column_size = 1;
+        json_format.map_column_type.clear();
+        json_format.map_column_type[0] = DBMysql::INT;
+        json_data.clear();
+        ret = g_db_mysql->GetDataAsJson(sql_select,&json_format,json_data);
+        if(!ret)
+        {
+            LOG(ERROR) << "select T2 > T4 faild .";
+            return false;
+        }
+
+        if(json_data.size()) 
+        {
+            uint64_t T2_amount = json_data[0][0].get<uint64_t>();
+            token_amount = T4_amount - T2_amount;
+            freeze_amount = T2_amount;
+            LOG(INFO) << asset_id << " asset token amount : " << token_amount
+                << ", and freeze amount : " << freeze_amount;
+        }
+        else
+        {
+            token_amount = T4_amount; 
+            LOG(INFO) << asset_id << " asset token amount : " << token_amount;
+        }
+    }
+    else
+    {
+        sql_select.clear();
+        sql_select = "SELECT `qty` FROM wallet_info WHERE address = '" + address 
+             + "' AND asset_id = '" + asset_id + "' AND contract = '" + contract 
+             + "' AND type = " + std::to_string(ActionObject::A2);
+
+        json_format.column_size = 1;
+        json_format.map_column_type.clear();
+        json_format.map_column_type[0] = DBMysql::INT;
+        json json_data;
+        ret = g_db_mysql->GetDataAsJson(sql_select,&json_format,json_data);
+        if(!ret)
+        {
+            LOG(ERROR) << "select A2 faild .";
+            return false;
+        }
+
+        if(json_data.size() == 0)
+        {
+            LOG(INFO) << asset_id << " asset not creation.";
+            return true;
+        }
+
+        uint64_t A2_amount = json_data[0][0].get<uint64_t>();
+
+        sql_select.clear();
+        sql_select = "SELECT `qty` FROM wallet_info WHERE address = '" + address 
+            + "' AND asset_id = '" + asset_id + "' AND contract = '" + contract 
+            + "' AND type = " + std::to_string(ActionObject::T2)
+            + " ORDER BY id DESC LIMIT 1;";
+
+        json_format.column_size = 1;
+        json_format.map_column_type.clear();
+        json_format.map_column_type[0] = DBMysql::INT;
+        json_data.clear();
+        ret = g_db_mysql->GetDataAsJson(sql_select,&json_format,json_data);
+        if(!ret)
+        {
+            LOG(ERROR) << "select T2 faild .";
+            return false;
+        }
+        if(json_data.size())
+        {
+            uint64_t T2_amount = json_data[0][0].get<uint64_t>();
+            token_amount = A2_amount - T2_amount;
+            freeze_amount = T2_amount;
+            LOG(INFO) << asset_id << " asset token amount : " << token_amount
+                << ", and freeze amount : " << freeze_amount;
+        }
+        else
+        {
+            token_amount = A2_amount;
+            LOG(INFO) << asset_id << " asset token amount : " << token_amount;
+        }
+    }
+    return true;
+}
+
+bool Logic::SendTransaction(const json& json_contract_data,std::string &txid)
+{
+    // TODO 广播前需要解析并验证
+    std::string singed_tx_hex = json_contract_data["hex"].get<std::string>();
+    json json_post;
+    json json_params = json::array();
+    StructRpcHeader("sendrawtransaction",json_post);
+    json_params.clear();
+    json_params.push_back(singed_tx_hex);
+    json_post["params"] = json_params;
+    curl_params_->curl_post_data  = json_post.dump();
+    if (!token_interactive::CurlPost(curl_params_))
+        return false;
+    json json_response = json::parse(curl_params_->curl_response);
+    if (json_response["result"].is_null())
+    {
+        LOG(INFO) << curl_params_->curl_response ;
+        CURL_ERR;
+        return false;
+    }
+    txid = json_response["result"].get<std::string>();
+    json json_utxo = json_contract_data["utxo"];
+    if (json_utxo.is_null())
+    {
+        LOG(INFO) << "has not utxo" << std::endl;
+        error_info_ = "Should input utxo";
+        return false;
+    }
+    std::string sql_del;
+    for(unsigned int i = 0; i < json_utxo.size(); i++)
+    {
+        std::string txid = json_utxo[i][0].get<std::string>();
+        int vout = json_utxo[i][1].get<int>();
+        sql_del = "delete from utxo where txid = '";
+        sql_del += txid +"' and vout = " + std::to_string(vout);
+        g_db_mysql->QuerySql(sql_del);
+    }
+    return true;
+}
+
+
+
