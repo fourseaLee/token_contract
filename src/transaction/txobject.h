@@ -22,10 +22,6 @@ public:
     void SetBlockHeight(uint64_t block_height);
     void GetBlockHeight(uint64_t& block_height);
 
-
-
-
-
 protected:
     std::string txid_;
     std::string op_return_content_;

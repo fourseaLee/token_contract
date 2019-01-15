@@ -124,17 +124,17 @@ public:
 
     void FilterBlock();
 
-    bool FlashToDB();
+    bool FlushToDB();
 
-    bool FlashUtxoToDB();
+    bool FlushUtxoToDB();
 
     bool InitMempoolTx(std::vector<std::string> vect_mempool_tx);
 protected:
-    bool FlashAction(Transaction *tx, const std::string &op_return_data);
+    bool ResponseAction(Transaction *tx, const std::string &op_return_data);
 
-    bool FlashActionT2(Transaction *tx,NCActT action_t);
+    bool ResponseActionT2(Transaction *tx,NCActT action_t);
 
-    bool FlashActionT4(Transaction *tx,NCActT action_t);
+    bool ResponseActionT4(Transaction *tx,NCActT action_t);
 
 protected:
 

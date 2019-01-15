@@ -15,7 +15,6 @@ static void  ScanBlockChainData()
     connect->port = std::atoi(g_map_conf["mysqlport"].c_str());
     connect->user_name = g_map_conf["mysqluser"];
     connect->url = g_map_conf["mysqlserver"];
-
     int pre_block_height =0;
     std::string select_sql = "select height from  txinfo  order by  height desc limit 1;";
     DBMysql::JsonDataFormat json_format;
@@ -27,6 +26,7 @@ static void  ScanBlockChainData()
     {
         return;
     }
+
     json json_data;
     g_db_mysql->GetDataAsJson(select_sql,&json_format,json_data);
     if (json_data.size() == 1)
@@ -53,13 +53,13 @@ static void  ScanBlockChainData()
     {
         parse_opreturn_data.SetFilterType(ParseTx::ONCHAIN);
         parse_opreturn_data.FilterBlock();
-        parse_opreturn_data.FlashToDB();
+        parse_opreturn_data.FlushToDB();
 
         parse_opreturn_data.SetFilterType(ParseTx::INMEMPOOL);
         parse_opreturn_data.FilterBlock();
-        parse_opreturn_data.FlashToDB();
+        parse_opreturn_data.FlushToDB();
 
-        parse_opreturn_data.FlashUtxoToDB();
+        parse_opreturn_data.FlushUtxoToDB();
         
         sleep(1);
     }

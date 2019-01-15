@@ -2,7 +2,6 @@
 #include  "data/db_mysql.h"
 #include <iostream>
 #include <glog/logging.h>
-
 #include "internal/handlerscan.h"
 
 static bool StructRpcHeader(const std::string rpc_method,json& json_data)
@@ -360,7 +359,7 @@ void ParseOpreturnData::AddTransaction(const json &json_tx, bool coinbase, int b
     }
 }
 
-bool ParseOpreturnData::FlashToDB()
+bool ParseOpreturnData::FlushToDB()
 {
     if (vect_tx_.size() <= 0 )
     {
@@ -426,7 +425,7 @@ bool ParseOpreturnData::FlashToDB()
             sql_value  = ((TxVoutOpReturn*)tx_vout)->op_return_data + "','" + std::to_string(tx_vout->index) + "','" + tx->txid + "','1');" ;
             sql_insert += sql_value;
             vect_insert.push_back(sql_insert);
-            FlashAction(tx,((TxVoutOpReturn*)tx_vout)->op_return_data);
+            ResponseAction(tx,((TxVoutOpReturn*)tx_vout)->op_return_data);
 
 
         }
@@ -437,7 +436,7 @@ bool ParseOpreturnData::FlashToDB()
 }
 
 
-bool ParseOpreturnData::FlashUtxoToDB()
+bool ParseOpreturnData::FlushUtxoToDB()
 {
     if (vect_utxo_.empty())
         return true;
@@ -499,7 +498,7 @@ bool ParseOpreturnData::InitMempoolTx(std::vector<std::string> vect_mempool_tx)
     return true;
 }
 
-bool ParseOpreturnData::FlashAction(Transaction* tx,const std::string& op_return_data)
+bool ParseOpreturnData::ResponseAction(Transaction* tx,const std::string& op_return_data)
 {
     NCAct operation = action_->UnSerializeOperation(op_return_data);
     if (!operation)
@@ -559,11 +558,11 @@ bool ParseOpreturnData::FlashAction(Transaction* tx,const std::string& op_return
         break;
     case ActionObject::T2:
         action_t = (NCActT)operation;
-        ret = FlashActionT2(tx,action_t);
+        ret = ResponseActionT2(tx,action_t);
         break;
     case ActionObject::T4:
         action_t = (NCActT)operation;
-        ret = FlashActionT4(tx,action_t);
+        ret = ResponseActionT4(tx,action_t);
         break;
     default:
         break;
@@ -574,7 +573,7 @@ bool ParseOpreturnData::FlashAction(Transaction* tx,const std::string& op_return
 
 }
 
-bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT action_t)
+bool ParseOpreturnData::ResponseActionT2(ParseOpreturnData::Transaction *tx, NCActT action_t)
 {
 
     HandlerScan handler;
@@ -634,13 +633,13 @@ bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT
 
     if (share_send == 0)
     {
-        LOG(ERROR) << "FlashActionT2 share_send is zero" ;
+        LOG(ERROR) << "ResponseActionT2 share_send is zero" ;
         return false;
     }
 
     if (share_send < share_exchange )
     {
-        LOG(ERROR) << "FlashActionT2 share_send "  << share_send << "little share_exchange" << share_exchange ;
+        LOG(ERROR) << "ResponseActionT2 share_send "  << share_send << "little share_exchange" << share_exchange ;
         return false;
     }
 
@@ -666,7 +665,7 @@ bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT
 
 }
 
-bool ParseOpreturnData::FlashActionT4(ParseOpreturnData::Transaction *tx, NCActT action_t)
+bool ParseOpreturnData::ResponseActionT4(ParseOpreturnData::Transaction *tx, NCActT action_t)
 {
     HandlerScan handler;
     std::string contract_address ;
@@ -719,7 +718,6 @@ bool ParseOpreturnData::FlashActionT4(ParseOpreturnData::Transaction *tx, NCActT
                     recieve_address = vout_address->vect_address.at(0);
                 }
             }
-
         }
     }
 

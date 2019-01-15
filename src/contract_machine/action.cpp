@@ -31,45 +31,6 @@ Action::Operation* Action::UnSerializeOperation(const std::string &op_return_hex
     return action;
 }
 
-//  static void Contract::BytesToFloat(float& out_float, const std::string& hex_data)
-//  {
-//      using namespace bc;
-//      data_chunk decode_data;
-//      decode_base16(decode_data,hex_data);
-//      char hex_to_float[4];
-//      for(int i = 0; i < 4; ++i)
-//      {
-//          hex_to_float[i] = decode_data[i];
-//      }
-//  
-//       out_float = *((float*)hex_to_float);
-//  }
-//  static void Contract::BytesToLong(uint64_t& out_long, const std::string& hex_data)
-//  {
-//      using namespace bc;
-//      data_chunk decode_data;
-//      decode_base16(decode_data,hex_data);
-//      char hex_to_long[8];
-//      for(int i = 0; i < 8; ++i)
-//      {
-//          hex_to_long[i] = decode_data[i];
-//      }
-//  
-//       out_long = *((uint64_t*)hex_to_long);
-//  }
-//  static void Contract::BytesToShort(uint16_t& out_short, const std::string& hex_data)
-//  {
-//      using namespace bc;
-//      data_chunk decode_data;
-//      decode_base16(decode_data,hex_data);
-//      char hex_to_short[2];
-//      for(int i = 0; i < 2; ++i)
-//      {
-//          hex_to_short[i] = decode_data[i];
-//      }
-//  
-//       out_short = *((uint16_t*)hex_to_short);//
-//  }
 Action::Operation *Action::NewOperation(const std::string& code_serialize,const std::string &op_return_hex)
 {
     ContractCode op_code  = ActionObject::CodeUnSerialize(code_serialize);
