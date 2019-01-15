@@ -1,7 +1,7 @@
 #include "httpserver.h"
-#include "json.hpp"
-#include "logic.h"
-#include<glog/logging.h>
+#include "common/json.hpp"
+#include "internal/handler.h"
+#include <glog/logging.h>
 #include "contract/contract.h"
 #include <exception>
 #include <iostream>
@@ -232,111 +232,7 @@ static void replyError(const std::unique_ptr<HTTPRequest>& req,const json& json_
     req->WriteReply(HTTP_INTERNAL,json_error.dump());
 }
 
-void testHttpMethod(std::unique_ptr<HTTPRequest> req)
-{
-    json json_response;
-    json_response["code"] = 0;
-    json_response["data"] = 0;
-
-    std::string response = json_response.dump();
-    req->WriteHeader("Content-Type", "application/json");
-    req->WriteReply(HTTP_OK,response);
-}
-
-
-void issueToken(std::unique_ptr<HTTPRequest> req)
-{
-
-    json json_error;
-    try
-    {
-        std::string post_data = req->ReadBody();
-        LOG(INFO) << "issueToken revieve:" << post_data;
-        json json_data = json::parse(post_data);
-        if(!json_data.is_object())
-        {
-            throw std::runtime_error("error params is not json object");
-        }
-
-        Logic logic;
-        std::vector<std::string> txs = logic.createContract(json_data);
-        json json_txs = json::array();
-        for(unsigned int i = 0; i < txs.size(); ++i)
-        {
-            json_txs.push_back(txs[i]);
-        }
-
-        json json_response;
-        json_response["code"] = 0;
-        json_response["data"] = json_txs;
-
-        std::string response = json_response.dump();
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK,response);
-        return ;
-    }
-    catch(json::exception& e)
-    {
-        json_error["code"] = 1;
-        json_error["data"] = e.what();
-    }
-    catch(std::exception& e)
-    {
-        json_error["code"] = 10;
-        json_error["data"] = e.what();
-    }
-
-    replyError(req,json_error);
-}
-
-void transferToken(std::unique_ptr<HTTPRequest> req)
-{
-
-    json json_error;
-    try
-    {
-        std::string post_data = req->ReadBody();
-        LOG(INFO) << "issueToken revieve:" << post_data;
-
-        json json_data = json::parse(post_data);
-        if(!json_data.is_object())
-        {
-            throw std::runtime_error("error params is not json object");
-        }
-
-        Logic logic;
-        std::vector<std::string> txs = logic.transferContract(json_data);
-        json json_txs = json::array();
-        for(unsigned int i = 0; i < txs.size(); ++i)
-        {
-            json_txs.push_back(txs[i]);
-        }
-
-        json json_response;
-        json_response["code"] = 0;
-        json_response["data"] = json_txs;
-
-        std::string response = json_response.dump();
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK,response);
-        return ;
-    }
-    catch(json::exception& e)
-    {
-        json_error["code"] = 1;
-        json_error["data"] = e.what();
-    }
-    catch(std::exception& e)
-    {
-        json_error["code"] = 10;
-        json_error["data"] = e.what();
-    }
-
-    replyError(req,json_error);
-
-}
-
-void queryToken(std::unique_ptr<HTTPRequest> req)
+void QueryBalance(std::unique_ptr<HTTPRequest> req)
 {
     json json_error;
     try
@@ -352,12 +248,12 @@ void queryToken(std::unique_ptr<HTTPRequest> req)
 
         json json_response;
         json_response["code"] = 0;
-        Logic logic;
+        Handler handler;
         std::string asset_id = json_data["asset_id"].get<std::string>();
         std::string asset_id_hash ;
         Contract::GetContractHash(asset_id,asset_id_hash);
         json_data["asset_id"] = asset_id_hash;
-        uint64_t  amount = logic.queryContract(json_data);
+        uint64_t  amount = handler.QueryContract(json_data);
         json_response["data"] = amount;
 
         std::string response = json_response.dump();
@@ -379,151 +275,6 @@ void queryToken(std::unique_ptr<HTTPRequest> req)
     replyError(req,json_error);
 }
 
-
-void ContractOffer(std::unique_ptr<HTTPRequest> req)
-{
-
-    json json_error;
-    try
-    {
-        std::string post_data = req->ReadBody();
-        LOG(INFO) << "contract offer:" << post_data;
-
-        json json_data = json::parse(post_data);
-        if(!json_data.is_object())
-        {
-            throw std::runtime_error("error params is not json object");
-        }
-
-        Logic logic;
-        std::string txid;
-        bool ret = logic.ContractOffer(json_data,txid);
-        if(!ret)
-        {
-            std::string error_info;
-            logic.GetErrorInfo(error_info);
-            throw std::runtime_error(error_info);
-        }
-
-        json json_response;
-        json_response["code"] = 0;
-        json_response["data"] = txid;
-        std::string response = json_response.dump();
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK,response);
-        return ;
-    }
-    catch(json::exception& e)
-    {
-        json_error["code"] = 1;
-        json_error["data"] = e.what();
-    }
-    catch(std::exception& e)
-    {
-        json_error["code"] = 10;
-        json_error["data"] = e.what();
-    }
-
-    replyError(req,json_error);
-
-}
-
-void AssetDefinition(std::unique_ptr<HTTPRequest> req)
-{
-
-    json json_error;
-    try
-    {
-        std::string post_data = req->ReadBody();
-        LOG(INFO) << "asset definition:" << post_data;
-
-        json json_data = json::parse(post_data);
-        if(!json_data.is_object())
-        {
-            throw std::runtime_error("error params is not json object");
-        }
-
-        Logic logic;
-        std::string txid;
-        bool ret = logic.AssetDefinition(json_data,txid);
-        if(!ret)
-        {
-            std::string error_info;
-            logic.GetErrorInfo(error_info);
-            throw std::runtime_error(error_info);
-        }
-
-        json json_response;
-        json_response["code"] = 0;
-        json_response["data"] = txid;
-        std::string response = json_response.dump();
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK,response);
-        return ;
-    }
-    catch(json::exception& e)
-    {
-        json_error["code"] = 1;
-        json_error["data"] = e.what();
-    }
-    catch(std::exception& e)
-    {
-        json_error["code"] = 10;
-        json_error["data"] = e.what();
-    }
-
-    replyError(req,json_error);
-}
-
-void PushUtxo(std::unique_ptr<HTTPRequest> req)
-{
-
-    json json_error;
-    try
-    {
-        std::string post_data = req->ReadBody();
-        LOG(INFO) << "Push  utxo:" << post_data;
-
-        json json_data = json::parse(post_data);
-        if(!json_data.is_object())
-        {
-            throw std::runtime_error("error params is not json object");
-        }
-
-        Logic logic;
-        json json_utxo;
-        bool ret = logic.PushUtxo(json_data,json_utxo);
-
-        if(!ret)
-        {
-            std::string error_info;
-            logic.GetErrorInfo(error_info);
-            throw std::runtime_error(error_info);
-        }
-
-        json json_response;
-        json_response["code"] = 0;
-        json_response["data"] = json_utxo;
-        std::string response = json_response.dump();
-        req->WriteHeader("Content-Type", "application/json");
-        req->WriteReply(HTTP_OK,response);
-        return ;
-    }
-    catch(json::exception& e)
-    {
-        json_error["code"] = 1;
-        json_error["data"] = e.what();
-    }
-    catch(std::exception& e)
-    {
-        json_error["code"] = 10;
-        json_error["data"] = e.what();
-    }
-
-    replyError(req,json_error);
-
-}
-
 void SendTransaction(std::unique_ptr<HTTPRequest> req)
 {
 
@@ -539,14 +290,14 @@ void SendTransaction(std::unique_ptr<HTTPRequest> req)
             throw std::runtime_error("error params is not json object");
         }
 
-        Logic logic;
+        Handler  handler;
         std::string txid;
-        bool ret = logic.SendTransaction(json_data,txid);
+        bool ret = handler.SendTransaction(json_data,txid);
 
         if(!ret)
         {
             std::string error_info;
-            logic.GetErrorInfo(error_info);
+            handler.GetErrorInfo(error_info);
             throw std::runtime_error(error_info);
         }
 
@@ -586,14 +337,14 @@ void GetUtxo(std::unique_ptr<HTTPRequest> req)
             throw std::runtime_error("error params is not json object");
         }
 
-        Logic logic;
+        Handler handler;
         json json_utxo = json::array();
-        bool ret = logic.GetUtxo(json_data,json_utxo);
+        bool ret = handler.GetUtxo(json_data,json_utxo);
 
         if(!ret)
         {
             std::string error_info;
-            logic.GetErrorInfo(error_info);
+            handler.GetErrorInfo(error_info);
             throw std::runtime_error(error_info);
         }
 

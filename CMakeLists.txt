@@ -18,60 +18,41 @@ set(contract_machine_src src/contract_machine/contractparse.cpp
 
 set(data_src src/data/db_mysql.cpp)
 
+set(common_src src/common/util.cpp)
+
 set(transaction_src src/transaction/txobject.cpp
                     src/transaction/tx.cpp)
 
-set(interactive_src src/interactive/tokeninteractive.cpp
-                    src/interactive/interactive.cpp)
-
-
-set(tokend_src ${contract_src}
+set(contractd_src ${contract_src}
             ${contract_machine_src}
             ${data_src}
             ${transaction_src}
-            ${interactive_src}
-            src/consumer.cpp
-            src/consumer_handler.cpp
-            src/producer.cpp
-            src/init.cpp
+            ${common_src}
+           	src/init.cpp
             src/httpserver.cpp
-            src/parsetx.cpp
-            src/logic.cpp
-            src/logicparsetx.cpp
-            src/logickafka.cpp
-            src/tokend.cpp)
+            src/internal/handler.cpp
+            src/contractd.cpp)
 
 set(scanblock_src ${contract_src}
             ${contract_machine_src}
             ${data_src}
             ${transaction_src}
-            ${interactive_src}
-            src/logic.cpp
-            src/logicparsetx.cpp
-            src/logickafka.cpp
-            src/consumer.cpp
-            src/consumer_handler.cpp
-            src/producer.cpp
-            src/init.cpp
+            ${common_src}
+         	src/init.cpp
             src/parsetx.cpp
+			src/internal/handler.cpp
+			src/internal/handlerscan.cpp
             src/scanblock.cpp)
 
-set(tokencli_src ${contract_src}
+set(contractcli_src ${contract_src}
             ${contract_machine_src}
             ${data_src}
             ${transaction_src}
-            ${interactive_src}
-            src/consumer.cpp
-            src/consumer_handler.cpp
-            src/producer.cpp
-            src/init.cpp
-            src/httpserver.cpp
-            src/parsetx.cpp
-            src/logic.cpp
-            src/logicparsetx.cpp
-            src/logickafka.cpp
-			src/logiccli.cpp
-            src/tokencli.cpp)
+            ${common_src}
+          	src/init.cpp
+	        src/internal/handler.cpp
+            src/internal/handlercli.cpp
+          	src/contractcli.cpp)
 
 #
 #set(lib_src ${transation_src}
@@ -86,14 +67,14 @@ set(tokencli_src ${contract_src}
 #ADD_LIBRARY (token_contract STATIC ${lib_src})
 #target_link_libraries(token_contract c rt  curl  pthread event  mysqlclient boost_system boost_program_options glog bitcoin)
 
-add_executable(tokend ${tokend_src})
-target_link_libraries(tokend c rt  curl  pthread event  mysqlclient boost_system boost_program_options glog bitcoin rdkafka rdkafka++)
+add_executable(contractd ${contractd_src})
+target_link_libraries(contractd c rt  curl  pthread event  mysqlclient boost_system boost_program_options glog bitcoin)
 
 add_executable(scanblock ${scanblock_src})
-target_link_libraries(scanblock c rt  curl  pthread event  mysqlclient boost_system boost_program_options glog bitcoin rdkafka rdkafka++)
+target_link_libraries(scanblock c rt  curl  pthread event  mysqlclient boost_system boost_program_options glog bitcoin)
 
-add_executable(tokencli ${tokencli_src})
-target_link_libraries(tokencli c rt  curl  pthread event  mysqlclient boost_system boost_program_options glog bitcoin rdkafka rdkafka++)
+add_executable(contractcli ${contractcli_src})
+target_link_libraries(contractcli c rt  curl  pthread event  mysqlclient boost_system boost_program_options glog bitcoin)
 
 #add_executable(test_logic ${scanblock_src})
 #target_link_libraries(scanblock c rt  curl  pthread event  mysqlclient boost_system boost_program_options glog bitcoin rdkafka rdkafka++)
