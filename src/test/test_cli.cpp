@@ -1,10 +1,11 @@
 #include "testingsetup.h"
 #include "transaction/txobject.h"
-#include "interactive/tokeninteractive.h"
+#include "common/util.h"
 #include "contract/contractobject.h"
 #include "contract_machine/contractparse.h"
-#include "logiccli.h"
-#include  "data/db_mysql.h"
+#include "internal/handler.h"
+#include "internal/handlercli.h"
+#include "data/db_mysql.h"
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -107,7 +108,7 @@ BOOST_AUTO_TEST_CASE(format)
 
 BOOST_AUTO_TEST_CASE(GetUtxo)
 {
-	LogicCli logic;
+	HandlerCli logic;
 	std::string contract_url = "http://192.168.0.26:6666";
 	logic.SetContractUrl(contract_url);	
 	std::string fun = "GetUtxo";
@@ -122,7 +123,7 @@ BOOST_AUTO_TEST_CASE(GetUtxo)
 
 BOOST_AUTO_TEST_CASE(ContractOffer)
 {
-	LogicCli logic;
+	HandlerCli logic;
 	std::string contract_url = "http://192.168.0.26:6666";
 	logic.SetContractUrl(contract_url);	
 	std::string fun = "ContractOffer";
@@ -138,7 +139,7 @@ BOOST_AUTO_TEST_CASE(ContractOffer)
 
 BOOST_AUTO_TEST_CASE(AssetDefinition)
 {
-	LogicCli logic;
+	HandlerCli logic;
 	std::string contract_url = "http://192.168.0.26:6666";
 	logic.SetContractUrl(contract_url);	
 	std::string fun = "AssetDefinition";
@@ -153,7 +154,7 @@ BOOST_AUTO_TEST_CASE(AssetDefinition)
 
 BOOST_AUTO_TEST_CASE(TokenSend)
 {
-	LogicCli logic;
+	HandlerCli logic;
 	std::string contract_url = "http://192.168.0.26:6666";
 	logic.SetContractUrl(contract_url);	
 	std::string fun = "TokenSend";
@@ -169,7 +170,7 @@ BOOST_AUTO_TEST_CASE(TokenSend)
 BOOST_AUTO_TEST_CASE(TokenRecieve)
 {
 	std::cout << "test recieve: "<< std::endl;
-	LogicCli logic;
+	HandlerCli logic;
 	std::string contract_url = "http://192.168.0.26:6666";
 	logic.SetContractUrl(contract_url);	
 	std::string fun = "TokenRecieve";
@@ -184,7 +185,7 @@ BOOST_AUTO_TEST_CASE(TokenRecieve)
 
 BOOST_AUTO_TEST_CASE(standard)
 {
-	LogicCli logic;
+	HandlerCli logic;
 	std::string contract_url = "http://192.168.0.40:18332";
 	logic.SetContractUrl(contract_url);
 

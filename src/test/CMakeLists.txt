@@ -21,8 +21,9 @@ set(contract_machine_src ../contract_machine/contractparse.cpp
             ../contract_machine/assettypes.cpp
             ../contract_machine/action.cpp)
 
-set(interactive_src ../interactive/tokeninteractive.cpp
-                    ../interactive/interactive.cpp)
+set(internal_src	../internal/handler.cpp
+					../internal/handlercli.cpp
+					../internal/handlerscan.cpp)
 
 set(transaction_src ../transaction/tx.cpp
                     ../transaction/txobject.cpp)
@@ -31,29 +32,20 @@ set(test_src ${transaction_src}
             ${contract_src}
             ${contract_machine_src}
             ${data_src}
-            ${interactive_src}
-			${transaction_src}
-			../consumer.cpp
-			../consumer_handler.cpp
-			../producer.cpp
+            ${internal_src}
 			../init.cpp
 			../httpserver.cpp
 			../parsetx.cpp
-   			../logic.cpp
-			../logicparsetx.cpp
-			../logickafka.cpp
-			../logiccli.cpp
+			../common/util.cpp
             testingsetup.cpp
             test_contract.cpp
             test_machine.cpp
-            test_logic.cpp
+            test_action.cpp
 			test_cli.cpp
             )
-set(test1_src testingsetup.cpp
-              test_bitcoin.cpp)
 add_executable(util_test ${test_src})
 target_link_libraries(util_test boost_unit_test_framework c rt  
     curl pthread boost_system boost_program_options event bitcoin 
-    mysqlclient glog rdkafka rdkafka++)
+    mysqlclient glog )
 
 
