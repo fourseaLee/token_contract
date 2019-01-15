@@ -5,11 +5,6 @@
     "daemon": "no",
     "block_node_url": "http://192.168.0.68:18332/",
     "contract_node_url": "http://192.168.0.68:8000/",
-    "kafka_url": "47.99.82.55:9092",
-    "producer": "qzys8h63u04l34jw5hrcqxsenrrarkz6dg3tfer8fn",
-    "topic": "qzys8h63u04l34jw5hrcqxsenrrarkz6dg3tfer8fn",
-    "brokers": "47.99.82.55:9092",
-    "groups": "1",
     "rpc_auth": "dev:a",
     "mysql": {
         "mysqlport": "3306",
