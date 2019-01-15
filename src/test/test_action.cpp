@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 
-BOOST_AUTO_TEST_SUITE(logic)
+BOOST_AUTO_TEST_SUITE(action)
 //BOOST_AUTO_TEST_CASE(standard)
 //{
 //    /*
