@@ -8,12 +8,12 @@
 
 请将项目编译到bin目录下
 cd  bin/ && cmake ../ && make
-编译完成会生成tokend,scanblock,tokencli三个可执行文件
-tokend是一个http服务器提供对外API,具体可以查看"doc/tokenization_api.md"
+编译完成会生成contractd,scanblock,contractcli三个可执行文件
+contractd是一个http服务器提供对外API,具体可以查看"doc/tokenization_api.md"
 scanblock是一个区块同步的存储层，用于同步链上相关数据到数据库。
-tokencli是一个客户端工具，用于普通用户和合约方交互
+contractcli是一个客户端工具，用于普通用户和合约方交互
 
-在linux平台下直接运行./tokend -l "日志相关配置文件的路径"  -c "程序运行的基本的配置文件的路径"
+在linux平台下直接运行./contractd -l "日志相关配置文件的路径"  -c "程序运行的基本的配置文件的路径"
 
 依照相应方法安装即可
 以后相关详细解释请看doc目录下文件
