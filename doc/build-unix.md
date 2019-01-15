@@ -29,9 +29,9 @@ make
 sudo make install
 ```
 
-[libbitcoin](https://github.com/libbitcoin/libbitcoin-system)
+[libbitcoin](https://github.com/QuickBlock/libbitcoin)
 
-You MUST use the tokenization/libbitcoin to install the bitcoin library. Or it may not be compatible.
+You MUST use the QuickBlock/libbitcoin to install the bitcoin library. Or it may not be compatible.
 ```
 cd libbitcoin
 chmod +x autogen.sh
@@ -41,10 +41,10 @@ make
 sudo make install
 ```
 
-[librdkafka](https://github.com/edenhill/librdkafka)
+[glog](https://github.com/google/glog)
 
 ```
-git clone https://github.com/edenhill/librdkafka.git
+./autogen.sh
 ./configure
 make
 sudo make install
@@ -53,9 +53,10 @@ sudo make install
 
 **Compilation**
 
+```
 mkdir bin
 cd bin
 cmake ..
 make
-
+```
 
