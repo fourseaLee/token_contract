@@ -1,6 +1,6 @@
 #include <iostream>
 #include "init.h"
-#include "interactive/tokeninteractive.h"
+#include "common/util.h"
 #include <thread>
 #include "parsetx.h"
 #include "data/db_mysql.h"
@@ -8,13 +8,13 @@
 
 static void  ScanBlockChainData()
 {
-    ParseOpreturnData parse_opreturn_data(token_init::g_map_conf["block_node_url"],token_init::g_map_conf["rpc_auth"]);
+    ParseOpreturnData parse_opreturn_data(g_map_conf["block_node_url"],g_map_conf["rpc_auth"]);
     DBMysql::MysqlConnect* connect = new DBMysql::MysqlConnect();
-    connect->use_db =  token_init::g_map_conf["mysqldb"];
-    connect->user_pass =  token_init::g_map_conf["mysqlpass"];
-    connect->port = std::atoi(token_init::g_map_conf["mysqlport"].c_str());
-    connect->user_name = token_init::g_map_conf["mysqluser"];
-    connect->url = token_init::g_map_conf["mysqlserver"];
+    connect->use_db =  g_map_conf["mysqldb"];
+    connect->user_pass =  g_map_conf["mysqlpass"];
+    connect->port = std::atoi(g_map_conf["mysqlport"].c_str());
+    connect->user_name = g_map_conf["mysqluser"];
+    connect->url = g_map_conf["mysqlserver"];
 
     int pre_block_height =0;
     std::string select_sql = "select height from  txinfo  order by  height desc limit 1;";
@@ -67,8 +67,8 @@ static void  ScanBlockChainData()
 
 static void PrintAllConf()
 {
-    std::map<std::string,std::string>::const_iterator con_it =  token_init::g_map_conf.begin();
-    while(con_it != token_init::g_map_conf.end())
+    std::map<std::string,std::string>::const_iterator con_it =  g_map_conf.begin();
+    while(con_it != g_map_conf.end())
     {
         std::cout << con_it->first << ":" << con_it->second;
         std::cout << std::endl;
@@ -80,25 +80,24 @@ int main(int argc, char* argv[])
 {
     std::cout << "just for test" <<std::endl;
 
-    if ( !token_interactive::ParseCmd(argc,argv) )
+    if ( !ParseCmd(argc,argv) )
     {
         std::cout <<  "must be init the configure path and log path " << std::endl;
         return 0;
     }
 
-    if ( !token_init::InitConfigure() )
+    if ( !InitConfigure() )
     {
         std::cout << "init the configure  failed!" << std::endl;
         return 0;
     }
     PrintAllConf();
 
-    if ( !token_init::InitLog() ) 
+    if ( !InitLog() )
     {
         std::cout << "init the log failed!" << std::endl;
         return 0;
     }
-
     ScanBlockChainData();
     return 0;
 }

@@ -71,22 +71,12 @@ void SignalHandler(int sig);
 
 void HttpRequestCb(struct evhttp_request *req, void *arg);
 
-void issueToken(std::unique_ptr<HTTPRequest> req);
-
-void transferToken(std::unique_ptr<HTTPRequest> req);
-
-void queryToken(std::unique_ptr<HTTPRequest> req);
-
-void ContractOffer(std::unique_ptr<HTTPRequest> req);
-
-void AssetDefinition(std::unique_ptr<HTTPRequest> req);
-
-void PushUtxo(std::unique_ptr<HTTPRequest> req);
-
 /**/
 void SendTransaction(std::unique_ptr<HTTPRequest> req);
 
 void GetUtxo(std::unique_ptr<HTTPRequest> req);
+
+void QueryBalance(std::unique_ptr<HTTPRequest> req);
 
 
 

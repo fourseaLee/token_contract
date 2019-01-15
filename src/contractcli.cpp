@@ -1,10 +1,10 @@
 #include "init.h"
 #include <iostream>
 #include <glog/logging.h>
-#include "interactive/tokeninteractive.h"
+#include "common/util.h"
 #include "contract/contractobject.h"
 #include "contract/designcontract.h"
-#include "logiccli.h"
+#include "internal/handlercli.h"
 #include <boost/program_options.hpp>
 #include "data/db_mysql.h"
 
@@ -23,7 +23,7 @@ static bool ReadParamsFromFile(const std::string& params_file,std::string&param_
     stream_file >> json_conf;
     if(!json_conf.is_object())
     {
-        std::cout << "This " << token_interactive::g_congfigure_path << " is not json file" << std::endl;
+        std::cout << "This " << params_file << " is not json file" << std::endl;
         json_conf.clear();
         return  false;
     }
@@ -66,8 +66,8 @@ static bool ParseCliParams(int argc, char*argv[])
         return false;
     }
 
-    LogicCli logic;
-    logic.SetContractUrl(contract_url);
+    HandlerCli handler;
+    handler.SetContractUrl(contract_url);
 
     if (cmd_param_map.count("function"))
     {
@@ -86,7 +86,7 @@ static bool ParseCliParams(int argc, char*argv[])
     }
 
     std::string result;
-    logic.RunFunction(cli_function,cli_params,result);
+    handler.RunFunction(cli_function,cli_params,result);
     std::cout << "result :" << std::endl;
     std::cout << result << std::endl;
     return true;

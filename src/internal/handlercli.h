@@ -1,14 +1,14 @@
-#ifndef LOGICCLI_H
-#define LOGICCLI_H
-#include "logic.h"
+#ifndef HANDLERCLI_H
+#define HANDLERCLI_H
+#include "handler.h"
 #include <string>
 
 
 
-class LogicCli : public Logic
+class HandlerCli : public Handler
 {
 public:
-    LogicCli();
+    HandlerCli();
 
     void SetContractUrl(const std::string& contract_url);
 
@@ -51,4 +51,4 @@ protected:
 
 };
 
-#endif // LOGICCLI_H
+#endif // HANDLERCLI_H

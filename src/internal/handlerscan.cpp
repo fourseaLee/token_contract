@@ -1,25 +1,20 @@
-#include "logicparsetx.h"
+#include "handlerscan.h"
 #include <glog/logging.h>
 
 #define PRE_LENGHT  8 // precise length
 #define FIXED_FEE  0.00001 //fixed  charge fee
 #define SETTLE_RECIEVE  0.00005 //fixed  recieve get value
-
-
-
 static Contract* s_contract  = new Contract();
-LogicParseTx::LogicParseTx()
+HandlerScan::HandlerScan()
 {
 
 }
-
-bool LogicParseTx::ContractFormat(const json &json_contract, std::string &txid)
+bool HandlerScan::ContractFormat(const json &json_contract, std::string &txid)
 {
     std::string issuer_address = json_contract["issuer_address"].get<std::string>();
     std::string contract_address = json_contract["contract_address"].get<std::string>();
     std::string contract_name = json_contract["contract_name"].get<std::string>();
     std::string contract_content = json_contract["contract_content"].get<std::string>();
-  //  std::string offer_txid  = json_contract["offer_txid"].get<std::string>();
     double fee = json_contract["fee"].get<double>();
 
     NCAct  action = new Action::ContractOperation();
@@ -44,7 +39,7 @@ bool LogicParseTx::ContractFormat(const json &json_contract, std::string &txid)
     return true;
 }
 
-bool LogicParseTx::AssetCreation(const json &json_contract, std::string &txid)
+bool HandlerScan::AssetCreation(const json &json_contract, std::string &txid)
 {
     std::string issuer_address = json_contract["issuer_address"].get<std::string>();
     std::string contract_address = json_contract["contract_address"].get<std::string>();
@@ -90,7 +85,7 @@ bool LogicParseTx::AssetCreation(const json &json_contract, std::string &txid)
     return true;
 }
 
-bool LogicParseTx::SettlementToken(const json &json_contract, std::string &txid)
+bool HandlerScan::SettlementToken(const json &json_contract, std::string &txid)
 {
     std::string contract_address = json_contract["contract_address"].get<std::string>();
     std::string send_address = json_contract["send_address"].get<std::string>();
@@ -151,7 +146,7 @@ bool LogicParseTx::SettlementToken(const json &json_contract, std::string &txid)
     return true;
 }
 
-bool LogicParseTx::CreateTransactionT4(Tx *tx, const  std::string &txid_input,  std::string &txid_output)
+bool HandlerScan::CreateTransactionT4(Tx *tx, const  std::string &txid_input,  std::string &txid_output)
 {
     std::vector<std::string> vect_address_input;
     std::vector<std::string> vect_address_output;
@@ -178,7 +173,7 @@ bool LogicParseTx::CreateTransactionT4(Tx *tx, const  std::string &txid_input,  
         json_post["params"] = json_params;
         curl_params_->curl_post_data  = json_post.dump();
 
-        if (!token_interactive::CurlPost(curl_params_) )
+        if (!CurlPost(curl_params_) )
             return false;
 
         json_response = json::parse(curl_params_->curl_response);
@@ -231,7 +226,7 @@ bool LogicParseTx::CreateTransactionT4(Tx *tx, const  std::string &txid_input,  
     json_post["params"] = json_params;
 
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_))
+    if (!CurlPost(curl_params_))
         return false;
 
     json_response = json::parse(curl_params_->curl_response);
@@ -249,7 +244,7 @@ bool LogicParseTx::CreateTransactionT4(Tx *tx, const  std::string &txid_input,  
     json_params.push_back(tx_hex);
     json_post["params"] = json_params;
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_))
+    if (!CurlPost(curl_params_))
         return false;
 
     json_response = json::parse(curl_params_->curl_response);
@@ -273,7 +268,7 @@ bool LogicParseTx::CreateTransactionT4(Tx *tx, const  std::string &txid_input,  
     json_params.push_back(sign_tx_hex);
     json_post["params"] = json_params;
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_))
+    if (!CurlPost(curl_params_))
         return false;
     json_response = json::parse(curl_params_->curl_response);
     if (json_response["result"].is_null())

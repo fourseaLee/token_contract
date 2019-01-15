@@ -1,6 +1,6 @@
 
-#include "logic.h"
-#include "interactive/tokeninteractive.h"
+#include "handler.h"
+#include "common/util.h"
 #include "data/db_mysql.h"
 #include "contract/contract.h"
 
@@ -15,7 +15,7 @@
 #define  RPC_ERR error_info_ = "Rpc node can't connect!"
 #define  CURL_ERR  error_info_ = curl_params_->curl_response
 
-bool  Logic::StructRpcHeader(const std::string rpc_method,json& json_data)
+bool  Handler::StructRpcHeader(const std::string rpc_method,json& json_data)
 {
     json_data["jsonrpc"] = "1.0";
     json_data["id"] = "curltest";
@@ -23,7 +23,7 @@ bool  Logic::StructRpcHeader(const std::string rpc_method,json& json_data)
     return true;
 }
 
-bool Logic::FormatDouble(double& value)
+bool Handler::FormatDouble(double& value)
 {
     if (value < 0.0)
         return false;
@@ -38,320 +38,19 @@ bool Logic::FormatDouble(double& value)
 }
 
 static Contract* s_contract  = new Contract();
-
-
-std::vector<std::string> Logic::createContract(json json_contract_data)
-{
-    contract_format_->issuer_address = json_contract_data["issuer_address"].get<std::string>();
-    contract_format_->contract_address = json_contract_data["contract_address"].get<std::string>();
-    contract_format_->contract_content = json_contract_data["contract_content"].get<std::string>();
-    contract_format_->contract_name = json_contract_data["contract_name"].get<std::string>();
-    contract_format_->asset_type = json_contract_data["asset_type"].get<std::string>();
-    contract_format_->asset_id = json_contract_data["asset_id"].get<std::string>();
-    contract_format_->asset_qty = json_contract_data["asset_qty"].get<uint64_t>();
-
-    Contract* contract_object = (Contract*)contract_->FormatContract(contract_format_);
-    std::vector<Tx* > vect_txs = contract_object->ActionsToBlockChainTxs();
-    if(vect_txs.size() != 4)
-    {
-        throw std::runtime_error("when create contract,transction acmount is not 4");
-    }
-
-    std::vector<std::string> vect_txid;
-    std::string txid;
-    bool is_success = CreateTransaction(vect_txs[0],txid);
-    if (!is_success)
-    {
-        throw std::runtime_error("option C1 error");
-    }
-    vect_txid.push_back(txid);
-
-    WalletInfo* wallet_info = new WalletInfo();
-    wallet_info->contract = contract_format_->contract_address;
-    wallet_info->asset_id = contract_format_->asset_id;
-    wallet_info->address = contract_format_->issuer_address;
-    wallet_info->txid = txid;
-    wallet_info->type = ActionObject::C1;
-    wallet_info->qty = contract_format_->asset_qty;
-    FlushToDB(wallet_info);
-
-    is_success = CreateTransaction(vect_txs[1],txid);
-    if (!is_success)
-    {
-        throw std::runtime_error("option C2 error");
-    }
-    vect_txid.push_back(txid);
-
-    wallet_info->txid = txid;
-    wallet_info->type = ActionObject::C2;
-    FlushToDB(wallet_info);
-
-    is_success = CreateTransaction(vect_txs[2],txid);
-    if (!is_success)
-    {
-        throw std::runtime_error("option A1 error");
-    }
-    vect_txid.push_back(txid);
-
-    wallet_info->txid = txid;
-    wallet_info->type = ActionObject::A1;
-    FlushToDB(wallet_info);
-
-    is_success = CreateTransaction(vect_txs[3],txid);
-    if (!is_success)
-    {
-        throw std::runtime_error("option A1 error");
-    }
-    vect_txid.push_back(txid);
-
-    wallet_info->txid = txid;
-    wallet_info->type = ActionObject::A2;
-    wallet_info->qty = contract_format_->asset_qty;
-    FlushToDB(wallet_info);
-
-    delete wallet_info;
-    return vect_txid;
-}
-
-std::vector<std::string> Logic::transferContract(json json_contract_data)
-{
-    transfer_->asset_id = json_contract_data["asset_id"].get<std::string>();
-    transfer_->send_address = json_contract_data["send_address"].get<std::string>();
-    transfer_->recieve_address = json_contract_data["recieve_address"].get<std::string>();
-    transfer_->contract_address = json_contract_data["contract_address"].get<std::string>();
-    transfer_->currency_count = json_contract_data["currency_count"].get<double>();
-    transfer_->share_count = json_contract_data["share_count"].get<uint64_t>();
-    json json_send;
-    json json_recieve;
-    json_send["address"] = transfer_->send_address;
-    json_send["asset_id"] =  transfer_->asset_id ;
-    json_send["contract"] = transfer_->contract_address;
-
-    json_recieve["address"] = transfer_->recieve_address;
-    json_recieve["asset_id"] =  transfer_->asset_id ;
-    json_recieve["contract"] = transfer_->contract_address;
-
-    uint64_t  send_cout = queryContract(json_send);// 100000000;
-    uint64_t  recieve_cout =  queryContract(json_recieve) ;//800000;
-
-    if (send_cout < transfer_->share_count)
-    {
-        std::string error_info = "token is unenough,need " + std::to_string(transfer_->share_count) + "but real is" + std::to_string(send_cout);
-        throw std::runtime_error(error_info);
-    }
-    transfer_->send_remain = send_cout - transfer_->share_count;
-    transfer_->recieve_remain = recieve_cout + transfer_->share_count;
-
-    Contract* contract_object = (Contract*)contract_->TransferShares(transfer_);
-    std::vector<Tx* > vect_txs = contract_object->ActionsToBlockChainTxs();
-    if(vect_txs.size() != 2)
-    {
-        throw std::runtime_error("when transfer token transction acmount is not 2");
-    }
-
-    std::vector<std::string> vect_txid;
-    std::string txid;
-    bool is_success = CreateTransaction(vect_txs[0],txid);
-    if (!is_success)
-    {
-        throw std::runtime_error("option T2 error");
-    }
-    vect_txid.push_back(txid);
-
-    WalletInfo* wallet_info = new WalletInfo();
-    wallet_info->contract = transfer_->contract_address;
-    wallet_info->asset_id = transfer_->asset_id;
-    wallet_info->address = transfer_->send_address;
-    wallet_info->txid = txid;
-    wallet_info->type = ActionObject::T2;
-    wallet_info->qty = transfer_->share_count;
-    FlushToDB(wallet_info);
-
-    is_success = CreateTransaction(vect_txs[1],txid);
-    if (!is_success)
-    {
-        throw std::runtime_error("option T4 error");
-    }
-    vect_txid.push_back(txid);
-
-    wallet_info->contract = transfer_->contract_address;
-    wallet_info->asset_id = transfer_->asset_id;
-    wallet_info->address = transfer_->send_address;
-    wallet_info->txid = txid;
-    wallet_info->type = ActionObject::T4;
-    wallet_info->qty = transfer_->send_remain;
-    FlushToDB(wallet_info);
-
-    wallet_info->contract = transfer_->contract_address;
-    wallet_info->asset_id = transfer_->asset_id;
-    wallet_info->address = transfer_->recieve_address;
-    wallet_info->txid = txid;
-    wallet_info->type = ActionObject::T4;
-    wallet_info->qty = transfer_->recieve_remain;
-    FlushToDB(wallet_info);
-    delete wallet_info;
-
-    return vect_txid;
-
-}
-
-uint64_t Logic::queryContract(const json &json_contract_data)
+uint64_t Handler::QueryContract(const json &json_contract_data)
 {
     uint64_t token_amout = 0;
     uint64_t token_available = 0;
     uint64_t token_freeze = 0;
-    bool ret = queryTokens(json_contract_data,token_available,token_freeze);
+    bool ret = QueryBalance(json_contract_data,token_available,token_freeze);
     if(!ret)
         return 0;
     token_amout = token_available + token_freeze;
     return token_amout;
 }
 
-bool Logic::ContractOffer(const json &json_contract,std::string& txid)
-{
-    std::string issuer_address = json_contract["issuer_address"].get<std::string>();
-    std::string contract_address = json_contract["contract_address"].get<std::string>();
-    std::string contract_name = json_contract["contract_name"].get<std::string>();
-    std::string contract_content = json_contract["contract_content"].get<std::string>();
-    double fee = json_contract["fee"].get<double>();
-
-
-    s_contract->SetContractType(Contract::SHC_CREATE);
-    s_contract->SetIssuerAddress(issuer_address);
-    s_contract->SetContractAddress(contract_address);
-
-    NCAct  action = new Action::ContractOperation();
-    NCActC action_c =  (NCActC)action;
-    action_c->operation_code = Action::C1;
-
-    action_c->contract_name = contract_name;
-    action_c->contract_file_hash = contract_content;
-
-    std::string op_ret_data;
-    bool ret = s_contract->FormatOpReturnData(action,op_ret_data);
-    if(!ret)
-    {
-        error_info_ = "serialize action C1 failed!";
-        delete action;
-        return ret;
-    }
-
-    Tx* tx = new Tx();
-    tx->map_input_amout_[issuer_address] = fee;
-    tx->map_output_amount_[contract_address] = fee;
-    tx->PushInputAddress(issuer_address);
-    tx->PushOutputAddress(contract_address);
-    tx->SetOpReturnData(op_ret_data);
-    ret = CreateTransaction(tx,txid);
-
-    delete tx;
-    delete action;
-    return ret;
-}
-
-bool Logic::AssetDefinition(const json &json_contract, std::string &txid)
-{
-    std::string issuer_address = json_contract["issuer_address"].get<std::string>();
-    std::string contract_address = json_contract["contract_address"].get<std::string>();
-    double fee = json_contract["fee"].get<double>();
-    std::string asset_id = json_contract["asset_id"].get<std::string>();
-    std::string asset_id_hash ;
-    ContractObject::GetContractHash(asset_id,asset_id_hash);
-    uint64_t qty = json_contract["qty"].get<uint64_t>();
-
-    NCAct action = new Action::AssetOperation();
-    NCActA action_a = (NCActA)action;
-    action_a->operation_code = Action::A1;
-    action_a->asset_type =  "SHC";//json_contract->asset_type;
-    action_a->asset_id = asset_id_hash;
-    action_a->qty = qty;
-    action_a->contract_fee_currency = "BCH";
-    action_a->contract_fee_var = 0.01;
-    action_a->contract_fee_fixed = 15;
-
-    std::string op_ret_data;
-    bool ret = s_contract->FormatOpReturnData(action,op_ret_data);
-    if(!ret)
-    {
-        error_info_ = "serialize action A1 failed!";
-        delete action;
-        return ret;
-    }
-
-    Tx* tx = new Tx();
-    tx->map_input_amout_[issuer_address] = fee;
-    tx->map_output_amount_[contract_address] = fee;
-    tx->PushInputAddress(issuer_address);
-    tx->PushOutputAddress(contract_address);
-    tx->SetOpReturnData(op_ret_data);
-    ret = CreateTransaction(tx,txid);
-    if (ret)
-    {
-        WalletInfo* wallet_info = new WalletInfo();
-        wallet_info->txid = txid;
-        wallet_info->type = ActionObject::A1;
-        wallet_info->address = issuer_address;
-        wallet_info->asset_id = asset_id_hash;
-        wallet_info->contract = contract_address;
-        wallet_info->qty = qty;
-        FlushToDB(wallet_info);
-        delete wallet_info;
-    }
-
-    delete tx;
-    delete action;
-    return ret;
-}
-
-bool Logic::PushUtxo(const json &json_contract,json &utxo)
-{
-    std::string contract_address = json_contract["contract_address"].get<std::string>();
-    std::string source =  json_contract["source"].get<std::string>();
-    std::string target = json_contract["target"].get<std::string>();
-    uint64_t  qty = json_contract["qty"].get<uint64_t>();
-    double currency = json_contract["currency"].get<double>();
-    std::string asset_id = json_contract["asset_id"].get<std::string>();
-    std::string asset_id_hash;
-    ContractObject::GetContractHash(asset_id,asset_id_hash);
-    double utxo_currency = 0.0;
-    bool ret = GetUTXO(source,currency,utxo,utxo_currency);
-
-    if (!ret)
-    {
-        return ret;
-    }
-
-    json json_content;
-    json_content["contract_address"] = contract_address;
-    json_content["utxo_currency"] =  utxo_currency;
-    json_content["utxo"] = utxo;
-    json_content["currency"] = currency;
-    json_content["send_address"] = target;
-    json_content["recieve_address"] = source;
-    json_content["asset_type"] = "SHC";
-    json_content["asset_id"] = asset_id;
-    json_content["shares"] = qty;
-    json json_kafka;
-    json_kafka["code"] = UTXO;
-    json_kafka["target"] = target;
-    json_kafka["content"] = json_content;
-
-    WalletInfo* wallet_info = new WalletInfo();
-    wallet_info->contract = contract_address;
-    wallet_info->asset_id = asset_id_hash;
-    wallet_info->address = source;
-    wallet_info->txid = "utxo";
-    wallet_info->type = ActionObject::T2;
-    wallet_info->qty = qty;
-    FlushToDB(wallet_info);
-    delete wallet_info;
-
-    token_init::g_kafka_producer->PushData(json_kafka.dump());
-
-    return true;
-}
-
-bool Logic::IsMyAddress(std::string &address)
+bool Handler::IsMyAddress(std::string &address)
 {
     if(address.empty())
         return false;
@@ -362,7 +61,7 @@ bool Logic::IsMyAddress(std::string &address)
     json_params.push_back(address);
     json_post["params"] = json_params;
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_) )
+    if (!::CurlPost(curl_params_) )
         return false;
     json json_response = json::parse(curl_params_->curl_response);
     json json_result = json_response["result"];
@@ -376,81 +75,17 @@ bool Logic::IsMyAddress(std::string &address)
     return ret;
 }
 
-uint64_t Logic::GetAvailableTokens(const json &json_contract_data)
+uint64_t Handler::GetAvailableTokens(const json &json_contract_data)
 {
     uint64_t token_available = 0;
     uint64_t token_freeze = 0;
-    bool ret = queryTokens(json_contract_data,token_available,token_freeze);
+    bool ret = QueryBalance(json_contract_data,token_available,token_freeze);
     if(!ret)
         return 0;
     return token_available;
 }
 
-bool Logic::GetUTXO(const std::string &address, const double &currency, json &utxo, double&utxo_currency)
-{
-    json json_post;
-    json json_params  = json::array();
-    json json_address_array = json::array();
-    json json_response;
-    json json_result;
-
-    StructRpcHeader("listunspent",json_post);
-    json_address_array.clear();
-    json_address_array.push_back(address);
-    json_params.clear();
-
-    json_params.push_back(0);
-    json_params.push_back(9999999);
-    json_params.push_back(json_address_array);
-    json_post["params"] = json_params;
-    curl_params_->curl_post_data  = json_post.dump();
-
-    if (!token_interactive::CurlPost(curl_params_))
-    {
-        RPC_ERR;
-        return false;
-    }
-
-    json_response = json::parse(curl_params_->curl_response);
-    if (json_response["result"].is_null())
-    {
-        LOG(INFO) << curl_params_->curl_post_data;
-        LOG(ERROR) << curl_params_->curl_response ;
-        CURL_ERR;
-        return false;
-    }
-
-    json_result = json_response["result"];
-    if (json_result.size() <= 0)
-    {
-        error_info_ = address + " has  no UTXO!";
-        return false;
-    }
-
-    double add_amount = 0.0;
-    for (unsigned int i = 0; i < json_result.size(); i++ )
-    {
-        json json_value  = json_result.at(i);
-        std::string txid_spent = json_value["txid"].get<std::string>();
-        int vout = json_value["vout"].get<int>();
-        double amount = json_value["amount"].get<double>();
-        add_amount += amount;
-        json json_txid;
-        json_txid["txid"] = txid_spent;
-        json_txid["vout"] = vout;
-        utxo.push_back(json_txid);
-        if (add_amount > currency )
-        {
-            utxo_currency = add_amount;
-            return true;
-        }
-    }
-
-    error_info_ = address + "has not enough ,need " + std::to_string(currency) +" but has only "  + std::to_string(add_amount);
-    return false;
-}
-
-bool Logic::EncodeAddress(const std::string &address, std::string &bch_address)
+bool Handler::EncodeAddress(const std::string &address, std::string &bch_address)
 {
     json json_post;
     json json_params = json::array();
@@ -459,7 +94,7 @@ bool Logic::EncodeAddress(const std::string &address, std::string &bch_address)
     json_params.push_back(address);
     json_post["params"] = json_params;
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_))
+    if (!::CurlPost(curl_params_))
         return false;
     json json_response = json::parse(curl_params_->curl_response);
     if (json_response["result"].is_null())
@@ -473,7 +108,7 @@ bool Logic::EncodeAddress(const std::string &address, std::string &bch_address)
     return true;
 }
 
-bool Logic::CreateTransaction(Tx *tx, std::string &txid)
+bool Handler::CreateTransaction(Tx *tx, std::string &txid)
 {
     std::vector<std::string> vect_address_input;
     std::vector<std::string> vect_address_output;
@@ -500,7 +135,7 @@ bool Logic::CreateTransaction(Tx *tx, std::string &txid)
         json_post["params"] = json_params;
         curl_params_->curl_post_data  = json_post.dump();
 
-        if (!token_interactive::CurlPost(curl_params_))
+        if (!::CurlPost(curl_params_))
         {
             RPC_ERR;
             return false;
@@ -593,7 +228,7 @@ bool Logic::CreateTransaction(Tx *tx, std::string &txid)
     json_post["params"] = json_params;
 
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_))
+    if (!::CurlPost(curl_params_))
     {
         RPC_ERR;
         return false;
@@ -615,7 +250,7 @@ bool Logic::CreateTransaction(Tx *tx, std::string &txid)
     json_params.push_back(tx_hex);
     json_post["params"] = json_params;
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_))
+    if (!CurlPost(curl_params_))
     {
         RPC_ERR;
         return false;
@@ -644,7 +279,7 @@ bool Logic::CreateTransaction(Tx *tx, std::string &txid)
     json_params.push_back(sign_tx_hex);
     json_post["params"] = json_params;
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_))
+    if (!CurlPost(curl_params_))
     {
         RPC_ERR;
         return false;
@@ -662,7 +297,7 @@ bool Logic::CreateTransaction(Tx *tx, std::string &txid)
     return true;
 }
 
-void Logic::FlushToDB(WalletInfo* wallet_info)
+void Handler::FlushToDB(WalletInfo* wallet_info)
 {
     std::string sql_insert = "INSERT INTO `wallet_info` (`contract`,`asset_id`,`qty`,`address`,`txid`,`type`) VALUES ('";
     // process regtest afddress
@@ -684,7 +319,7 @@ void Logic::FlushToDB(WalletInfo* wallet_info)
     g_db_mysql->QuerySql(sql_insert);
 }
 
-bool Logic::GetUtxo(const json &json_request, json &json_utxo)
+bool Handler::GetUtxo(const json &json_request, json &json_utxo)
 {
 
     std::string address = json_request["address"].get<std::string>();
@@ -721,12 +356,12 @@ bool Logic::GetUtxo(const json &json_request, json &json_utxo)
     return enough;
 }
 
-void Logic::GetErrorInfo(std::string &error_info)
+void Handler::GetErrorInfo(std::string &error_info)
 {
     error_info = error_info_;
 }
 
-bool Logic::queryTokens(const json& json_contract_data, uint64_t& token_amount, uint64_t& freeze_amount)
+bool Handler::QueryBalance(const json& json_contract_data, uint64_t& token_amount, uint64_t& freeze_amount)
 {
     std::string address = json_contract_data["address"].get<std::string>();
     std::string asset_id = json_contract_data["asset_id"].get<std::string>();
@@ -854,7 +489,7 @@ bool Logic::queryTokens(const json& json_contract_data, uint64_t& token_amount, 
     return true;
 }
 
-bool Logic::SendTransaction(const json& json_contract_data,std::string &txid)
+bool Handler::SendTransaction(const json& json_contract_data,std::string &txid)
 {
     // TODO 广播前需要解析并验证
     std::string singed_tx_hex = json_contract_data["hex"].get<std::string>();
@@ -865,7 +500,7 @@ bool Logic::SendTransaction(const json& json_contract_data,std::string &txid)
     json_params.push_back(singed_tx_hex);
     json_post["params"] = json_params;
     curl_params_->curl_post_data  = json_post.dump();
-    if (!token_interactive::CurlPost(curl_params_))
+    if (!CurlPost(curl_params_))
         return false;
     json json_response = json::parse(curl_params_->curl_response);
     if (json_response["result"].is_null())

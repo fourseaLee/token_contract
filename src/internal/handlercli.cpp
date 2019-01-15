@@ -1,5 +1,5 @@
-#include "logiccli.h"
-#include  "json.hpp"
+#include "handlercli.h"
+#include  "common/json.hpp"
 #include <map>
 using json = nlohmann::json;
 /*
@@ -7,34 +7,34 @@ typedef void (*PF)(const std::string& params,std::string& result);
 static  std::map<std::string,PF> s_map_function;
 */
 
-token_interactive::CurlParams* s_curl_params = new token_interactive::CurlParams();
+CurlParams* s_curl_params = new CurlParams();
 #define UTIL_TEST
 
 static Contract* s_contract  = new Contract();
 
-LogicCli::LogicCli()
+HandlerCli::HandlerCli()
 {
 
 }
 
-void LogicCli::SetContractUrl(const std::string &contract_url)
+void HandlerCli::SetContractUrl(const std::string &contract_url)
 {
     contract_url_ = contract_url;
     s_curl_params->curl_url = contract_url_;
     s_curl_params->need_auth = true;
 }
 
-void LogicCli::GetContractUrl(std::string &contract_url)
+void HandlerCli::GetContractUrl(std::string &contract_url)
 {
     contract_url = contract_url_;
 }
 
-void LogicCli::RegisterFunction()
+void HandlerCli::RegisterFunction()
 {
 
 }
 
-bool LogicCli::RunFunction(const std::string &function, const std::string &params, std::string& result)
+bool HandlerCli::RunFunction(const std::string &function, const std::string &params, std::string& result)
 {
 
     if (function == "Help")
@@ -70,13 +70,13 @@ bool LogicCli::RunFunction(const std::string &function, const std::string &param
     return true;
 }
 
-bool LogicCli::Help(const std::string &params, std::string &result)
+bool HandlerCli::Help(const std::string &params, std::string &result)
 {
     std::cout << "client  help info: " << std::endl;
     return true;
 }
 
-bool LogicCli::GetUtxo(const std::string &params, std::string &result)
+bool HandlerCli::GetUtxo(const std::string &params, std::string &result)
 {
     std::cout << "GetUtxo: " << params << std::endl;
     json json_params = json::parse(params);
@@ -88,7 +88,7 @@ bool LogicCli::GetUtxo(const std::string &params, std::string &result)
     json_post["value"] = value;
     s_curl_params->curl_post_data = json_post.dump();
 
-    if (!token_interactive::CurlPost(s_curl_params))
+    if (!CurlPost(s_curl_params))
     {
         std::cout << "GetUtxo failed!" << std::endl;
         return false;
@@ -101,7 +101,7 @@ bool LogicCli::GetUtxo(const std::string &params, std::string &result)
     return true;
 }
 
-bool LogicCli::ContractOffer(const std::string &params, std::string &result)
+bool HandlerCli::ContractOffer(const std::string &params, std::string &result)
 {
     std::cout << "ContractOffer: " << params << std::endl;
     json json_params = json::parse(params);
@@ -140,7 +140,7 @@ bool LogicCli::ContractOffer(const std::string &params, std::string &result)
     return true;
 }
 
-bool LogicCli::AssetDefinition(const std::string &params, std::string &result)
+bool HandlerCli::AssetDefinition(const std::string &params, std::string &result)
 {
     std::cout << "AssetDefinition: " <<  std::endl;
     json json_params = json::parse(params);
@@ -185,7 +185,7 @@ bool LogicCli::AssetDefinition(const std::string &params, std::string &result)
     return true;
 }
 
-bool LogicCli::TokenSend(const std::string &params, std::string &result)
+bool HandlerCli::TokenSend(const std::string &params, std::string &result)
 {
     std::cout << "TokenSend: " << std::endl;
     json json_params = json::parse(params);
@@ -266,7 +266,7 @@ bool LogicCli::TokenSend(const std::string &params, std::string &result)
     return true;
 }
 
-bool LogicCli::TokenRecieve(const std::string &params, std::string &result)
+bool HandlerCli::TokenRecieve(const std::string &params, std::string &result)
 {
     std::cout << "TokenRecieve: " << std::endl;
 
@@ -294,13 +294,13 @@ bool LogicCli::TokenRecieve(const std::string &params, std::string &result)
     return true;
 }
 
-bool LogicCli::GetBalance(const std::string &params, std::string &result)
+bool HandlerCli::GetBalance(const std::string &params, std::string &result)
 {
     std::cout << "GetBalance: " << std::endl;
     return true;
 }
 
-bool LogicCli::BuildTransaction(const std::string&priv_key_base58,
+bool HandlerCli::BuildTransaction(const std::string&priv_key_base58,
                                 const std::string& op_ret_data,
                                 const json&json_utxo,
                                 const std::string& issuer_address,
@@ -331,7 +331,7 @@ bool LogicCli::BuildTransaction(const std::string&priv_key_base58,
     return true;
 }
 
-bool LogicCli::SendRawtransaction(const std::string &tx_hex,const json& json_utxo, std::string &txid)
+bool HandlerCli::SendRawtransaction(const std::string &tx_hex,const json& json_utxo, std::string &txid)
 {
 
     s_curl_params->curl_url += "/SendTransaction";
@@ -341,7 +341,7 @@ bool LogicCli::SendRawtransaction(const std::string &tx_hex,const json& json_utx
     json_post["utxo"] = json_utxo;
     s_curl_params->curl_post_data = json_post.dump();
 
-    if (!token_interactive::CurlPost(s_curl_params))
+    if (!CurlPost(s_curl_params))
     {
         std::cout << "SendTrasaction failed!" << std::endl;
         return false;

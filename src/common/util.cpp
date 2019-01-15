@@ -1,12 +1,12 @@
-#include "tokeninteractive.h"
+#include "common/util.h"
 #include <boost/program_options.hpp>
 #include <iostream>
 #include <curl/curl.h>
 #include <glog/logging.h>
 
-std::string token_interactive::g_log_path;
-std::string token_interactive::g_congfigure_path;
-bool token_interactive::ParseCmd(int argc, char *argv[])
+std::string g_log_path;
+std::string g_congfigure_path;
+bool ParseCmd(int argc, char *argv[])
 {
     using namespace  boost::program_options;
     std::string path_configure ;
@@ -57,7 +57,7 @@ static size_t ReplyCallback(void *ptr, size_t size, size_t nmemb, void *stream)
     return size * nmemb;
 }
 
-bool token_interactive::CurlPost(token_interactive::CurlParams *curl_params)
+bool CurlPost(CurlParams *curl_params)
 {
     CURL *curl = curl_easy_init();
     struct curl_slist *headers = NULL;

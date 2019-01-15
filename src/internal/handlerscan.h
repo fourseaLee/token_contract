@@ -1,12 +1,11 @@
-#ifndef LOGICPARSETX_H
-#define LOGICPARSETX_H
-#include "logic.h"
+#ifndef HANDLERSCAN_H
+#define HANDLERSCAN_H
+#include "internal/handler.h"
 
-class LogicParseTx : public Logic
+class HandlerScan : public Handler
 {
 public:
-    LogicParseTx();
-
+    HandlerScan();
 
 public:
     bool ContractFormat(const json& json_contract,std::string& txid);
@@ -18,4 +17,4 @@ protected:
     bool CreateTransactionT4(Tx *tx, const  std::string &txid_input,  std::string &txid_output);
 };
 
-#endif // LOGICPARSETX_H
+#endif // HandlerScan_H

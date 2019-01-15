@@ -1,8 +1,7 @@
-#ifndef GETOPRETURNTX_H
-#define GETOPRETURNTX_H
-
-#include "interactive/tokeninteractive.h"
-#include "json.hpp"
+#ifndef PARSETX_H
+#define PARSETX_H
+#include "common/json.hpp"
+#include "common/util.h"
 #include <string>
 #include <vector>
 #include "contract_machine/action.h"
@@ -31,7 +30,7 @@ public:
 
     void SetPreBlockHeight(uint64_t pre_block_height);
 protected:
-    token_interactive::CurlParams* curl_param_;
+    CurlParams* curl_param_;
     TxType filter_type_;
     uint64_t pre_block_height_;
 };
@@ -155,4 +154,4 @@ private:
     Action* action_;
 
 };
-#endif //GETOPRETURNTX_H
+#endif //PARSETX_H

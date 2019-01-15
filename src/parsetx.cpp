@@ -2,7 +2,8 @@
 #include  "data/db_mysql.h"
 #include <iostream>
 #include <glog/logging.h>
-#include "logicparsetx.h"
+
+#include "internal/handlerscan.h"
 
 static bool StructRpcHeader(const std::string rpc_method,json& json_data)
 {
@@ -21,7 +22,7 @@ static bool IsZero(double value)
 
 ParseTx::ParseTx()
 {
-    curl_param_ = new token_interactive::CurlParams();
+    curl_param_ = new CurlParams();
 }
 
 ParseTx::~ParseTx()
@@ -77,7 +78,7 @@ void ParseOpreturnData::filterBlockOnChain()
     StructRpcHeader("getblockcount",json_post);
     json_post["params"] = json_params;
     curl_param_->curl_post_data = json_post.dump();
-    if ( !token_interactive::CurlPost(curl_param_) )
+    if ( !CurlPost(curl_param_) )
     {
         LOG(ERROR) << "RPC getblockcount failed ";
         return;
@@ -103,7 +104,7 @@ void ParseOpreturnData::filterBlockOnChain()
         json_params.push_back(pre_block_height_);
         json_post["params"] = json_params;
         curl_param_->curl_post_data = json_post.dump();
-        if ( !token_interactive::CurlPost(curl_param_) )
+        if ( !CurlPost(curl_param_) )
         {
             LOG(ERROR) << "RPC getblockhash failed " << pre_block_height_;
             continue;
@@ -116,7 +117,7 @@ void ParseOpreturnData::filterBlockOnChain()
         json_params.push_back(block_hash);
         json_post["params"] = json_params;
         curl_param_->curl_post_data = json_post.dump();
-        if ( !token_interactive::CurlPost(curl_param_) )
+        if ( !CurlPost(curl_param_) )
         {
             LOG(ERROR) << "RPC getblock failed " << pre_block_height_;
             continue;
@@ -137,7 +138,7 @@ void ParseOpreturnData::filterBlockOnChain()
             json_params.push_back(tx_hash);
             json_post["params"] = json_params;
             curl_param_->curl_post_data = json_post.dump();
-            if ( !token_interactive::CurlPost(curl_param_) )
+            if ( !CurlPost(curl_param_) )
             {
                 LOG(ERROR) << "RPC gettransaction failed " << tx_hash;
                 continue;
@@ -155,7 +156,7 @@ void ParseOpreturnData::filterBlockOnChain()
             json_params.push_back(tx_hex);
             json_post["params"] = json_params;
             curl_param_->curl_post_data = json_post.dump();
-            if ( !token_interactive::CurlPost(curl_param_) )
+            if ( !CurlPost(curl_param_) )
             {
                 LOG(ERROR) << "RPC decoderawtransaction failed " << tx_hex;
                 continue;
@@ -183,7 +184,7 @@ void ParseOpreturnData::filterBlockMempool()
     json_post["params"] = json_params;
 
     curl_param_->curl_post_data = json_post.dump();
-    if ( !token_interactive::CurlPost(curl_param_) )
+    if ( !CurlPost(curl_param_) )
     {
         LOG(ERROR) << "RPC getrawmempool failed ";
         return;
@@ -214,7 +215,7 @@ void ParseOpreturnData::filterBlockMempool()
         json_params.push_back(tx_hash);
         json_post["params"] = json_params;
         curl_param_->curl_post_data = json_post.dump();
-        if ( !token_interactive::CurlPost(curl_param_) )
+        if ( !CurlPost(curl_param_) )
         {
             LOG(ERROR) << "gettransaction error " << curl_param_->curl_response ;
             continue ;
@@ -232,7 +233,7 @@ void ParseOpreturnData::filterBlockMempool()
         json_params.push_back(tx_hex);
         json_post["params"] = json_params;
         curl_param_->curl_post_data = json_post.dump();
-        if ( !token_interactive::CurlPost(curl_param_) )
+        if ( !CurlPost(curl_param_) )
         {
             LOG(ERROR) << "RPC decoderawtransaction failed " << tx_hex;
         }
@@ -281,7 +282,7 @@ void ParseOpreturnData::AddTransaction(const json &json_tx, bool coinbase, int b
             StructRpcHeader("getrawtransaction",json_post);
             json_post["params"] = json_params;
             curl_param_->curl_post_data = json_post.dump();
-            if ( !token_interactive::CurlPost(curl_param_) )
+            if ( !CurlPost(curl_param_) )
             {
                 LOG(ERROR) << "RPC getrawtransaction failed ";
             }
@@ -295,7 +296,7 @@ void ParseOpreturnData::AddTransaction(const json &json_tx, bool coinbase, int b
             json_params.push_back(tx_hex);
             json_post["params"] = json_params;
             curl_param_->curl_post_data = json_post.dump();
-            if ( !token_interactive::CurlPost(curl_param_) )
+            if ( !CurlPost(curl_param_) )
             {
                 LOG(ERROR) << "RPC decoderawtransaction failed " << tx_hex;
             }
@@ -503,7 +504,7 @@ bool ParseOpreturnData::FlashAction(Transaction* tx,const std::string& op_return
     NCAct operation = action_->UnSerializeOperation(op_return_data);
     if (!operation)
         return false;
-    LogicParseTx logic;
+    HandlerScan handler;
     bool ret = false;
     json json_contract;
     NCActA action_a = NULL;
@@ -521,7 +522,7 @@ bool ParseOpreturnData::FlashAction(Transaction* tx,const std::string& op_return
         if(vout_tmp->vout_type == ADDRESS )
         {
             vout = (TxVoutAddress*)vout_tmp;
-            if (logic.IsMyAddress(vout->vect_address[0])  && !logic.IsMyAddress(vin_address))
+            if (handler.IsMyAddress(vout->vect_address[0])  && !handler.IsMyAddress(vin_address))
             {
                 is_handle = true;
                 break;
@@ -544,7 +545,7 @@ bool ParseOpreturnData::FlashAction(Transaction* tx,const std::string& op_return
         json_contract["contract_name"] = action_c->contract_name;
         json_contract["contract_content"] = action_c->contract_file_hash;
         json_contract["fee"] = 0.00005;
-        ret = logic.ContractFormat(json_contract,txid);
+        ret = handler.ContractFormat(json_contract,txid);
         break;
     case ActionObject::A1:
         action_a = (NCActA)operation;
@@ -554,7 +555,7 @@ bool ParseOpreturnData::FlashAction(Transaction* tx,const std::string& op_return
         json_contract["asset_id"] = action_a->asset_id;
         json_contract["qty"] = action_a->qty;
         json_contract["fee"] = 0.00012;
-        ret = logic.AssetCreation(json_contract,txid);
+        ret = handler.AssetCreation(json_contract,txid);
         break;
     case ActionObject::T2:
         action_t = (NCActT)operation;
@@ -576,7 +577,7 @@ bool ParseOpreturnData::FlashAction(Transaction* tx,const std::string& op_return
 bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT action_t)
 {
 
-    LogicParseTx logic;
+    HandlerScan handler;
     std::vector<std::string> vect_address_vin;
     std::string address ;
     TxVoutAddress* vout_address = NULL;
@@ -621,7 +622,7 @@ bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT
             }
         }
     }
-    if ( !logic.IsMyAddress(contract_address) )
+    if ( !handler.IsMyAddress(contract_address) )
     {
         return false;
     }
@@ -629,7 +630,7 @@ bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT
     json_query["address"] = send_address;
     json_query["asset_id"] = action_t->party1_asset_id;
     json_query["contract"] = contract_address;
-    uint64_t share_send = logic.queryContract(json_query);
+    uint64_t share_send = handler.QueryContract(json_query);
 
     if (share_send == 0)
     {
@@ -645,7 +646,7 @@ bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT
 
     share_send -= share_exchange;
     json_query["address"] = recieve_address;
-    uint64_t share_recieve = logic.queryContract(json_query);
+    uint64_t share_recieve = handler.QueryContract(json_query);
     share_recieve += share_exchange;
 
     json json_contract;
@@ -659,7 +660,7 @@ bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT
     json_contract["fee"] =  0.00005;
     json_contract["txid"] = tx->txid;
     std::string txid;
-    bool ret = logic.SettlementToken(json_contract,txid);
+    bool ret = handler.SettlementToken(json_contract,txid);
 
     return ret;
 
@@ -667,7 +668,7 @@ bool ParseOpreturnData::FlashActionT2(ParseOpreturnData::Transaction *tx, NCActT
 
 bool ParseOpreturnData::FlashActionT4(ParseOpreturnData::Transaction *tx, NCActT action_t)
 {
-    LogicParseTx logic;
+    HandlerScan handler;
     std::string contract_address ;
     TxVoutAddress* vout_address = NULL;
     for(unsigned int i = 0; i < tx->vect_vin.size(); i++)
@@ -723,28 +724,28 @@ bool ParseOpreturnData::FlashActionT4(ParseOpreturnData::Transaction *tx, NCActT
     }
 
 
-    if ( logic.IsMyAddress(send_address) )
+    if ( handler.IsMyAddress(send_address) )
     {
-        Logic::WalletInfo wallet_info;
+        Handler::WalletInfo wallet_info;
         wallet_info.address = send_address;
         wallet_info.asset_id = asset_id;
         wallet_info.contract = contract_address;
         wallet_info.qty = send_share;
         wallet_info.txid = tx->txid;
         wallet_info.type = Action::T4;
-        logic.FlushToDB(&wallet_info);
+        handler.FlushToDB(&wallet_info);
     }
 
-    if( logic.IsMyAddress(recieve_address))
+    if( handler.IsMyAddress(recieve_address))
     {
-        Logic::WalletInfo wallet_info;
+        Handler::WalletInfo wallet_info;
         wallet_info.address = recieve_address;
         wallet_info.asset_id = asset_id;
         wallet_info.contract = contract_address;
         wallet_info.qty = recieve_share;
         wallet_info.txid = tx->txid;
         wallet_info.type = Action::T4;
-        logic.FlushToDB(&wallet_info);
+        handler.FlushToDB(&wallet_info);
     }
 
     return true;
