@@ -22,7 +22,7 @@ contractcli是客户端
     广播交易： SendTransaction
     调用举例：
     curl   --data-binary  '{"hex":"02000000012ab3215b1d0e6 .....7cd6220a03e79d87e5ace71b85761","utxo":
-    [["364af8dffccdbfdfa9be4b2527dacbd35575f514828c342edb604b50a4c8b4d9",0,"0.000050"]... ]] http://192.168.0.26:6666/GetUtxo
+    [["364af8dffccdbfdfa9be4b2527dacbd35575f514828c342edb604b50a4c8b4d9",0,"0.000050"]... ]] http://192.168.0.26:6666/SendTransaction
     结果：
     {"code":0,"data":"2df038ba049ce50f0d951f8a6f67f59deff754c7c148654fb3f6f433122b3bf3"}
     
